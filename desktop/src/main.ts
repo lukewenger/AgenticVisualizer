@@ -1,0 +1,341 @@
+/**
+ * Electron main process entry point.
+ *
+ * Phase 1 scope: start the relay in-process (same `createRelay()` used by the
+ * standalone CLI app and the dev relay server), forward its raw event /
+ * session-lifecycle callbacks to the renderer over IPC, and open a window
+ * that proves the pipe works. No tray, no packaging, no preferences yet —
+ * those are later phases.
+ */
+import { app, BrowserWindow, Tray, Menu, dialog } from 'electron'
+import * as path from 'path'
+import * as fs from 'fs'
+import { autoUpdater } from 'electron-updater'
+import log from 'electron-log'
+
+// Bundled by esbuild (see desktop/scripts/build.js) — same module the CLI
+// app and dev relay use. Bundling pulls in extension/src/* and aliases the
+// `vscode` import to scripts/vscode-shim.js, exactly like app/build.js does.
+import { createRelay, type Relay } from '../../scripts/relay'
+import { loadPreferences, savePreferences, type DesktopPreferences } from './preferences'
+
+// Phase 6: route console output through electron-log so it also persists to
+// disk (default location: app.getPath('logs')/main.log on each OS), instead
+// of only being visible when launched from a terminal.
+log.transports.file.level = 'info'
+log.transports.console.level = 'info'
+Object.assign(console, log.functions)
+
+let mainWindow: BrowserWindow | null = null
+let relay: Relay | null = null
+let preferences: DesktopPreferences = loadPreferences()
+let connectionStatus: 'connected' | 'disconnected' | 'degraded' = 'disconnected'
+
+// Phase 3: only one instance of the app should run at a time. If a second
+// launch is attempted (e.g. double-clicking the app again while it's already
+// running in the tray), focus the existing window instead of starting a new
+// process.
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+if (!gotSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
+
+// Phase 3: tracks whether the app is genuinely quitting (via the tray's
+// "Quit" item, the native menu's Quit role, or OS shutdown) versus the user
+// just closing the window, which should hide to tray instead (Slack/Discord
+// style background utility behavior).
+let isQuitting = false
+
+// Phase 6: createRelay() can throw if the hook server's port is already
+// bound (e.g. the VS Code extension or another instance of this app is
+// already running). That must not crash the app or block the window from
+// opening — fall back gracefully and let file-based session detection
+// (transcript polling) keep working.
+async function startRelay(): Promise<void> {
+  if (relay) return
+  try {
+    relay = await createRelay({ workspace: null })
+    relay.onRawEvent((event) => {
+      mainWindow?.webContents.send('agent-event', event)
+    })
+    relay.onRawSessionLifecycle((data) => {
+      mainWindow?.webContents.send('session-lifecycle', data)
+    })
+    connectionStatus = 'connected'
+  } catch (err) {
+    log.error('Failed to start relay/hook server:', err)
+    connectionStatus = 'degraded'
+    dialog.showErrorBox(
+      'Agent Flow',
+      'Could not start the session listener (port already in use — is the VS Code extension or another instance already running?). File-based session detection will still work.',
+    )
+  }
+  mainWindow?.webContents.send('connection-status', { status: connectionStatus, source: 'electron-main' })
+}
+
+function stopRelay(): void {
+  relay?.dispose()
+  relay = null
+  connectionStatus = 'disconnected'
+  mainWindow?.webContents.send('connection-status', { status: connectionStatus, source: 'electron-main' })
+}
+
+function resolveRendererPath(): string | null {
+  // Phase 2 will wire the built standalone renderer (web/vite.config.app.ts
+  // output, mirrored into desktop/dist/renderer or loaded directly from
+  // app/dist/webview). Until that's in place, fall back to the placeholder.
+  const candidates = [
+    path.join(__dirname, 'renderer', 'index.html'),
+    path.join(__dirname, '..', '..', 'app', 'dist', 'webview', 'index.html'),
+  ]
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate
+  }
+  return null
+}
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    title: 'Agent Flow',
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  })
+
+  const rendererPath = resolveRendererPath()
+  if (rendererPath) {
+    mainWindow.loadFile(rendererPath)
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'placeholder.html'))
+  }
+
+  // Phase 3: closing the window hides it instead of quitting, so the app
+  // keeps running in the tray (relay stays alive, sessions keep streaming).
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault()
+      mainWindow?.hide()
+    }
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+}
+
+function setupTray(win: BrowserWindow) {
+  const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png')
+  const tray = new Tray(iconPath)
+  tray.setToolTip('Agent Flow')
+
+  // Phase 6: keep the "Launch at login" checkbox in sync with the actual OS
+  // state on startup, in case the user changed it via OS settings directly
+  // rather than through this menu.
+  const osLoginState = app.getLoginItemSettings().openAtLogin
+  if (osLoginState !== preferences.launchAtLogin) {
+    preferences.launchAtLogin = osLoginState
+    savePreferences(preferences)
+  }
+
+  function rebuildMenu() {
+    const menu = Menu.buildFromTemplate([
+      {
+        label: 'Show Agent Flow',
+        click: () => {
+          win.show()
+          win.focus()
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Auto-detect sessions',
+        type: 'checkbox',
+        checked: preferences.autoDetectSessions,
+        click: (menuItem) => {
+          preferences.autoDetectSessions = menuItem.checked
+          savePreferences(preferences)
+          if (preferences.autoDetectSessions) {
+            startRelay().catch((err) => log.error('startRelay failed:', err))
+          } else {
+            stopRelay()
+          }
+        },
+      },
+      {
+        label: 'Launch at login',
+        type: 'checkbox',
+        checked: preferences.launchAtLogin,
+        click: (menuItem) => {
+          preferences.launchAtLogin = menuItem.checked
+          savePreferences(preferences)
+          app.setLoginItemSettings({ openAtLogin: menuItem.checked })
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Preferences...',
+        click: () => {
+          dialog.showMessageBox(win, {
+            type: 'info',
+            title: 'Preferences',
+            message: 'Agent Flow Preferences',
+            detail:
+              `Auto-detect sessions: ${preferences.autoDetectSessions ? 'On' : 'Off'}\n` +
+              `Launch at login: ${preferences.launchAtLogin ? 'On' : 'Off'}\n` +
+              `Hook port override: ${preferences.hookPortOverride ?? '(default)'}\n\n` +
+              'Use the tray menu checkboxes to change these settings.',
+          })
+        },
+      },
+      {
+        label: 'About',
+        click: () => {
+          const sessionCount = relay ? '(see main window for active sessions)' : 'n/a'
+          dialog.showMessageBox(win, {
+            type: 'info',
+            title: 'About Agent Flow',
+            message: 'Agent Flow',
+            detail:
+              `Version ${app.getVersion()}\n` +
+              `Status: ${connectionStatus === 'connected' ? 'Running' : connectionStatus === 'degraded' ? 'Running (file-based detection only)' : 'Running'}\n` +
+              `Active sessions: ${sessionCount}`,
+          })
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          isQuitting = true
+          app.quit()
+        },
+      },
+    ])
+    tray.setContextMenu(menu)
+  }
+
+  rebuildMenu()
+
+  // Windows convention: left-click the tray icon toggles the window instead
+  // of (only) opening the context menu.
+  tray.on('click', () => {
+    if (win.isVisible()) {
+      win.hide()
+    } else {
+      win.show()
+      win.focus()
+    }
+  })
+
+  return tray
+}
+
+function setupApplicationMenu() {
+  const isMac = process.platform === 'darwin'
+
+  const template: Electron.MenuItemConstructorOptions[] = isMac
+    ? [
+        {
+          label: app.name,
+          submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'quit' }],
+        },
+        {
+          label: 'View',
+          submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }],
+        },
+        {
+          label: 'Window',
+          submenu: [{ role: 'minimize' }, { role: 'close' }],
+        },
+      ]
+    : [
+        {
+          label: 'File',
+          submenu: [{ role: 'quit' }],
+        },
+        {
+          label: 'View',
+          submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }],
+        },
+        {
+          label: 'Window',
+          submenu: [{ role: 'minimize' }, { role: 'close' }],
+        },
+        {
+          label: 'Help',
+          submenu: [
+            {
+              label: 'About',
+              click: () => {
+                dialog.showMessageBox({
+                  type: 'info',
+                  title: 'About Agent Flow',
+                  message: 'Agent Flow',
+                  detail: `Version ${app.getVersion()}`,
+                })
+              },
+            },
+          ],
+        },
+      ]
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
+
+app.whenReady().then(async () => {
+  // Phase 5: check for updates on startup and notify the user when one has
+  // been downloaded (no-op in dev / unpackaged runs — electron-updater
+  // requires app.isPackaged and a configured publish provider).
+  autoUpdater.checkForUpdatesAndNotify().catch(() => {
+    // Swallow errors (e.g. no update server reachable, unpackaged app) —
+    // update checks must never block app startup.
+  })
+  autoUpdater.on('update-downloaded', (info) => {
+    mainWindow?.webContents.send('update-downloaded', info)
+  })
+
+  createWindow()
+
+  if (preferences.autoDetectSessions) {
+    await startRelay()
+  } else {
+    mainWindow?.webContents.send('connection-status', { status: 'disconnected', source: 'electron-main' })
+  }
+
+  setupApplicationMenu()
+  if (mainWindow) setupTray(mainWindow)
+
+  // Phase 3: on macOS the app should live in the tray, not the Dock, like a
+  // background utility (mirrors Slack/Discord "minimize to tray" behavior).
+  if (process.platform === 'darwin') {
+    app.dock?.hide()
+  }
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('before-quit', () => {
+  // Phase 3: closing via the tray's Quit item / native menu Quit role /
+  // OS shutdown should bypass the hide-to-tray behavior in the window's
+  // `close` handler and actually exit.
+  isQuitting = true
+  stopRelay()
+})

@@ -1,3 +1,17 @@
 packages:
   - extension
   - web
+  - desktop
+
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  sharp: true
+
+overrides:
+  app-builder-lib: 26.12.1
+  builder-util: 26.12.1
+  dmg-builder: 26.12.1
+  electron-builder-squirrel-windows: 26.12.1
+  electron-publish: 26.12.1

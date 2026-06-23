@@ -1,0 +1,51 @@
+name: Desktop Release
+
+# Builds and publishes the Electron desktop app installers (Windows NSIS,
+# macOS DMG, Linux AppImage) to a GitHub Release whenever a `v*.*.*` tag is
+# pushed. Uses electron-builder's built-in `--publish always`, which uploads
+# artifacts directly to the matching GitHub Release using GH_TOKEN.
+#
+# NOTE: code signing / notarization are NOT configured (see TODOs in
+# desktop/electron-builder.config.js) — published installers are unsigned.
+# NOTE: desktop/electron-builder.config.js `publish.owner` is currently a
+# placeholder ('REPLACE_WITH_REAL_ORG') — it must be set to the real GitHub
+# org/user before this workflow can publish successfully.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build main/preload/renderer bundles
+        run: pnpm --filter agent-flow-desktop run build && pnpm --filter agent-flow-desktop run build:renderer
+
+      - name: Package and publish (${{ matrix.os }})
+        run: pnpm --filter agent-flow-desktop exec electron-builder --config electron-builder.config.js --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false

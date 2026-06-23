@@ -15,8 +15,28 @@ type StatusCallback = (status: ConnectionStatus, source: string) => void
 type ConfigCallback = (config: Partial<{ mode: string; autoPlay: boolean; showMockData: boolean; disable1MContext: boolean }>) => void
 type SessionCallback = (type: 'list' | 'started' | 'ended' | 'updated' | 'reset', data: SessionInfo[] | SessionInfo | string | { sessionId: string; label: string }) => void
 
+/** Shape of `window.electronBridge`, exposed by desktop/src/preload.ts via contextBridge. */
+interface ElectronBridgeApi {
+  onEvent(cb: (data: unknown) => void): void
+  onSessionLifecycle(cb: (data: unknown) => void): void
+  onStatus(cb: (data: unknown) => void): void
+  send(channel: string, data: unknown): void
+}
+
+declare global {
+  interface Window {
+    electronBridge?: ElectronBridgeApi
+  }
+}
+
+function getElectronBridge(): ElectronBridgeApi | null {
+  if (typeof window === 'undefined') return null
+  return 'electronBridge' in window ? (window.electronBridge ?? null) : null
+}
+
 class VSCodeBridge {
   private _isVSCode = false
+  private _isElectron = false
   private _status: ConnectionStatus = 'disconnected'
   private _source = ''
 
@@ -30,6 +50,43 @@ class VSCodeBridge {
     if (typeof window !== 'undefined') {
       window.addEventListener('message', this.handleMessage)
     }
+
+    const electronBridge = getElectronBridge()
+    if (electronBridge) {
+      this._isElectron = true
+      this.setupElectronBridge(electronBridge)
+    }
+  }
+
+  /** Wire desktop/src/preload.ts's `window.electronBridge` into the same
+   *  unified callback interface used by the VS Code and SSE/relay paths. */
+  private setupElectronBridge(electronBridge: ElectronBridgeApi): void {
+    electronBridge.onEvent((data: unknown) => {
+      for (const cb of this.eventListeners) {
+        cb(data as AgentEvent)
+      }
+    })
+
+    electronBridge.onSessionLifecycle((data: unknown) => {
+      const lifecycle = data as { type: 'list' | 'started' | 'ended' | 'updated' | 'reset'; data: SessionInfo[] | SessionInfo | string | { sessionId: string; label: string } }
+      for (const cb of this.sessionListeners) {
+        cb(lifecycle.type, lifecycle.data)
+      }
+    })
+
+    electronBridge.onStatus((data: unknown) => {
+      const status = data as { status: ConnectionStatus; source?: string }
+      this._status = status.status
+      this._source = status.source || 'electron-main'
+      for (const cb of this.statusListeners) {
+        cb(this._status, this._source)
+      }
+    })
+
+    // Electron renderer is never running in VS Code and needs no "ready"
+    // handshake — fire init listeners immediately, mirroring configureWebviewApi.
+    for (const cb of this.initListeners) cb()
+    this.initListeners = []
   }
 
   private handleMessage = (e: MessageEvent) => {
@@ -108,6 +165,10 @@ class VSCodeBridge {
     return this._isVSCode
   }
 
+  get isElectron(): boolean {
+    return this._isElectron
+  }
+
   // ─── Subscribe to events ─────────────────────────────────────────────────
 
   private subscribe<T>(listeners: T[], callback: T): () => void {
@@ -120,7 +181,7 @@ class VSCodeBridge {
 
   /** Subscribe to bridge init. If already initialized, fires synchronously. */
   onInit(callback: InitCallback): () => void {
-    if (this._isVSCode) {
+    if (this._isVSCode || this._isElectron) {
       callback()
       return () => {} // already fired, nothing to unsubscribe
     }
@@ -150,6 +211,11 @@ class VSCodeBridge {
   }
 
   private postToExtension(message: Record<string, unknown>): void {
+    if (this._isElectron) {
+      const electronBridge = getElectronBridge()
+      electronBridge?.send(typeof message.type === 'string' ? message.type : 'message', message)
+      return
+    }
     if (this._isVSCode && typeof window !== 'undefined') {
       // When inside VS Code iframe, post to parent (the webview frame)
       window.parent.postMessage(message, '*')

@@ -1,0 +1,30 @@
+{
+  "name": "agent-flow-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-time visualization of AI agent orchestration — native desktop app (Electron)",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "build:renderer": "node scripts/build-renderer.js",
+    "dev": "node scripts/build.js && node scripts/build-renderer.js && electron .",
+    "start": "electron .",
+    "package": "electron-builder --config electron-builder.config.js",
+    "package:win": "electron-builder --config electron-builder.config.js --win",
+    "package:mac": "electron-builder --config electron-builder.config.js --mac",
+    "package:linux": "electron-builder --config electron-builder.config.js --linux"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "26.12.1",
+    "electron-builder-squirrel-windows": "26.12.1",
+    "esbuild": "^0.20.2",
+    "typescript": "^5.4.0"
+  }
+}

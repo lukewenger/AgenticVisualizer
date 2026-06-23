@@ -72,6 +72,10 @@ export function useVSCodeBridge(): BridgeHookResult {
     // Skip in VS Code — extension handles events via postMessage
     if (bridge.isVSCode) return
 
+    // Skip in Electron — main process delivers events via IPC (see
+    // vscode-bridge.ts's setupElectronBridge), not the SSE relay endpoint
+    if (bridge.isElectron) return
+
     // Connect to relay in dev mode or standalone CLI mode
     const isStandalone = process.env.AGENT_FLOW_STANDALONE === '1'
     if (!isStandalone && (process.env.NODE_ENV !== 'development' || process.env.NEXT_PUBLIC_DEMO !== '0')) return

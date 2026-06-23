@@ -67,6 +67,17 @@ function sendSSE(res: http.ServerResponse, data: unknown) {
   }
 }
 
+// ─── Raw event callbacks ────────────────────────────────────────────────────
+// Non-SSE consumers (e.g. the Electron main process) can register callbacks
+// here to receive the same broadcasts SSE clients get, without speaking HTTP.
+// These are invoked in addition to — never instead of — the SSE broadcast.
+
+type RawEventCallback = (event: AgentEvent) => void
+type RawSessionLifecycleCallback = (data: { type: 'started' | 'ended' | 'updated'; sessionId: string; label: string }) => void
+
+const rawEventCallbacks = new Set<RawEventCallback>()
+const rawSessionLifecycleCallbacks = new Set<RawSessionLifecycleCallback>()
+
 function broadcast(data: string) {
   for (const res of sseClients) {
     try { res.write(`data: ${data}\n\n`) } catch {
@@ -98,6 +109,9 @@ function broadcastEvent(event: AgentEvent) {
   }
 
   broadcast(JSON.stringify({ type: 'agent-event', event }))
+  for (const cb of rawEventCallbacks) {
+    try { cb(event) } catch (err) { log('[relay] onRawEvent callback threw', err) }
+  }
 }
 
 function broadcastSessionLifecycle(type: 'started' | 'ended' | 'updated', sessionId: string, label: string) {
@@ -110,6 +124,9 @@ function broadcastSessionLifecycle(type: 'started' | 'ended' | 'updated', sessio
     broadcast(JSON.stringify({ type: 'session-ended', sessionId }))
   } else if (type === 'updated') {
     broadcast(JSON.stringify({ type: 'session-updated', sessionId, label }))
+  }
+  for (const cb of rawSessionLifecycleCallbacks) {
+    try { cb({ type, sessionId, label }) } catch (err) { log('[relay] onRawSessionLifecycle callback threw', err) }
   }
 }
 
@@ -266,27 +283,41 @@ function readNewLines(sessionId: string) {
 
 // ─── Session scanner ────────────────────────────────────────────────────────
 
-function scanForActiveSessions(workspace: string) {
+function scanForActiveSessions(workspace: string | null) {
   if (!fs.existsSync(CLAUDE_DIR)) return
 
-  let resolved = workspace
-  try { resolved = fs.realpathSync(resolved) } catch {}
-  const encoded = resolved.replace(/[^a-zA-Z0-9]/g, '-')
-
   const dirsToScan: string[] = []
-  const projectDir = path.join(CLAUDE_DIR, encoded)
-  if (fs.existsSync(projectDir)) dirsToScan.push(projectDir)
 
-  try {
-    for (const dir of fs.readdirSync(CLAUDE_DIR, { withFileTypes: true })) {
-      if (!dir.isDirectory()) continue
-      const fullPath = path.join(CLAUDE_DIR, dir.name)
-      if (fullPath === projectDir) continue
-      if (dir.name.startsWith(encoded + '-')) {
-        dirsToScan.push(fullPath)
+  if (workspace === null) {
+    // All-workspaces mode (e.g. desktop app) — scan every project directory
+    // under ~/.claude/projects/ regardless of encoding scheme. Genuinely-active
+    // sessions are still gated below by mtime recency (ACTIVE_SESSION_AGE_S),
+    // so a stale/unrelated project dir won't get picked up just because it exists.
+    try {
+      for (const dir of fs.readdirSync(CLAUDE_DIR, { withFileTypes: true })) {
+        if (!dir.isDirectory()) continue
+        dirsToScan.push(path.join(CLAUDE_DIR, dir.name))
       }
-    }
-  } catch {}
+    } catch {}
+  } else {
+    let resolved = workspace
+    try { resolved = fs.realpathSync(resolved) } catch {}
+    const encoded = resolved.replace(/[^a-zA-Z0-9]/g, '-')
+
+    const projectDir = path.join(CLAUDE_DIR, encoded)
+    if (fs.existsSync(projectDir)) dirsToScan.push(projectDir)
+
+    try {
+      for (const dir of fs.readdirSync(CLAUDE_DIR, { withFileTypes: true })) {
+        if (!dir.isDirectory()) continue
+        const fullPath = path.join(CLAUDE_DIR, dir.name)
+        if (fullPath === projectDir) continue
+        if (dir.name.startsWith(encoded + '-')) {
+          dirsToScan.push(fullPath)
+        }
+      }
+    } catch {}
+  }
 
   for (const dirPath of dirsToScan) {
     try {
@@ -331,8 +362,14 @@ function hashWorkspace(workspace: string): string {
 
 let discoveryFilePath: string | null = null
 
-function writeDiscoveryFile(port: number, workspace: string) {
+function writeDiscoveryFile(port: number, workspace: string | null) {
   if (!fs.existsSync(DISCOVERY_DIR)) fs.mkdirSync(DISCOVERY_DIR, { recursive: true })
+  if (workspace === null) {
+    // All-workspaces mode — no single workspace to encode, so key by pid alone.
+    discoveryFilePath = path.join(DISCOVERY_DIR, `all-${process.pid}.json`)
+    fs.writeFileSync(discoveryFilePath, JSON.stringify({ port, pid: process.pid, workspace: null }, null, 2) + '\n')
+    return
+  }
   const hash = hashWorkspace(workspace)
   discoveryFilePath = path.join(DISCOVERY_DIR, `${hash}-${process.pid}.json`)
   fs.writeFileSync(discoveryFilePath, JSON.stringify({ port, pid: process.pid, workspace: normalizePath(workspace) }, null, 2) + '\n')
@@ -349,6 +386,18 @@ function removeDiscoveryFile() {
 export interface Relay {
   /** Handle an incoming SSE connection */
   handleSSE: (req: http.IncomingMessage, res: http.ServerResponse) => void
+  /**
+   * Register a callback invoked with every AgentEvent as it's broadcast.
+   * For non-HTTP consumers (e.g. Electron's main process forwarding to a
+   * renderer over IPC) that want the same data SSE clients receive.
+   * Returns an unsubscribe function.
+   */
+  onRawEvent: (cb: RawEventCallback) => () => void
+  /**
+   * Register a callback invoked on every session lifecycle change
+   * (started/ended/updated). Returns an unsubscribe function.
+   */
+  onRawSessionLifecycle: (cb: RawSessionLifecycleCallback) => () => void
   /** Clean up all resources */
   dispose: () => void
 }
@@ -356,7 +405,9 @@ export interface Relay {
 export type RelayRuntimeMode = 'claude' | 'codex' | 'auto'
 
 export interface RelayOptions {
-  workspace: string
+  /** Pass null to scan ALL Claude/Codex sessions on the machine instead of
+   *  scoping to a single workspace (used by the desktop app). */
+  workspace: string | null
   verbose?: boolean
   telemetry?: TelemetryClient
   /** Which runtimes to watch. Defaults to AGENT_FLOW_RUNTIME env var, or 'auto'.
@@ -405,15 +456,27 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
     scanForActiveSessions(workspace)
     scanInterval = setInterval(() => scanForActiveSessions(workspace), SCAN_INTERVAL_MS)
 
-    const resolved = (() => { try { return fs.realpathSync(workspace) } catch { return workspace } })()
-    const encoded = resolved.replace(/[^a-zA-Z0-9]/g, '-')
-    const projectDir = path.join(CLAUDE_DIR, encoded)
-    if (fs.existsSync(projectDir)) {
-      try {
-        projectDirWatcher = fs.watch(projectDir, (_eventType, filename) => {
-          if (filename?.endsWith('.jsonl')) scanForActiveSessions(workspace)
-        })
-      } catch {}
+    if (workspace === null) {
+      // All-workspaces mode — watch the parent ~/.claude/projects/ directory
+      // itself so newly-created project subdirectories (e.g. a brand-new
+      // workspace opened elsewhere on the machine) trigger an immediate
+      // rescan instead of waiting for the next poll tick.
+      if (fs.existsSync(CLAUDE_DIR)) {
+        try {
+          projectDirWatcher = fs.watch(CLAUDE_DIR, () => scanForActiveSessions(workspace))
+        } catch {}
+      }
+    } else {
+      const resolved = (() => { try { return fs.realpathSync(workspace) } catch { return workspace } })()
+      const encoded = resolved.replace(/[^a-zA-Z0-9]/g, '-')
+      const projectDir = path.join(CLAUDE_DIR, encoded)
+      if (fs.existsSync(projectDir)) {
+        try {
+          projectDirWatcher = fs.watch(projectDir, (_eventType, filename) => {
+            if (filename?.endsWith('.jsonl')) scanForActiveSessions(workspace)
+          })
+        } catch {}
+      }
     }
   }
 
@@ -507,6 +570,16 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
           sendSSE(res, { type: 'agent-event-batch', events: buffered })
         }
       }
+    },
+
+    onRawEvent(cb: RawEventCallback) {
+      rawEventCallbacks.add(cb)
+      return () => rawEventCallbacks.delete(cb)
+    },
+
+    onRawSessionLifecycle(cb: RawSessionLifecycleCallback) {
+      rawSessionLifecycleCallbacks.add(cb)
+      return () => rawSessionLifecycleCallbacks.delete(cb)
     },
 
     dispose() {
