@@ -73,7 +73,7 @@ function sendSSE(res: http.ServerResponse, data: unknown) {
 // These are invoked in addition to — never instead of — the SSE broadcast.
 
 type RawEventCallback = (event: AgentEvent) => void
-type RawSessionLifecycleCallback = (data: { type: 'started' | 'ended' | 'updated'; sessionId: string; label: string }) => void
+type RawSessionLifecycleCallback = (data: { type: 'started' | 'ended' | 'updated'; sessionId: string; label: string; startTime: number; lastActivityTime: number }) => void
 
 const rawEventCallbacks = new Set<RawEventCallback>()
 const rawSessionLifecycleCallbacks = new Set<RawSessionLifecycleCallback>()
@@ -115,10 +115,14 @@ function broadcastEvent(event: AgentEvent) {
 }
 
 function broadcastSessionLifecycle(type: 'started' | 'ended' | 'updated', sessionId: string, label: string) {
+  const tracked = sessions.get(sessionId)
+  const startTime = tracked?.sessionStartTime ?? Date.now()
+  const lastActivityTime = tracked?.lastActivityTime ?? Date.now()
+
   if (type === 'started') {
     broadcast(JSON.stringify({
       type: 'session-started',
-      session: { id: sessionId, label, status: 'active', startTime: Date.now(), lastActivityTime: Date.now() } as SessionInfo,
+      session: { id: sessionId, label, status: 'active', startTime, lastActivityTime } as SessionInfo,
     }))
   } else if (type === 'ended') {
     broadcast(JSON.stringify({ type: 'session-ended', sessionId }))
@@ -126,7 +130,7 @@ function broadcastSessionLifecycle(type: 'started' | 'ended' | 'updated', sessio
     broadcast(JSON.stringify({ type: 'session-updated', sessionId, label }))
   }
   for (const cb of rawSessionLifecycleCallbacks) {
-    try { cb({ type, sessionId, label }) } catch (err) { log('[relay] onRawSessionLifecycle callback threw', err) }
+    try { cb({ type, sessionId, label, startTime, lastActivityTime }) } catch (err) { log('[relay] onRawSessionLifecycle callback threw', err) }
   }
 }
 
@@ -542,34 +546,26 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
         log(`[sse] Client disconnected (${sseClients.size} total)`)
       })
 
-      // Send current session list (Claude + Codex)
-      const sessionList: SessionInfo[] = []
-      for (const session of sessions.values()) {
-        if (!session.sessionDetected) continue
-        sessionList.push({
-          id: session.sessionId, label: session.label,
-          status: session.sessionCompleted ? 'completed' : 'active',
-          startTime: session.sessionStartTime, lastActivityTime: session.lastActivityTime,
-        })
+      // Send current session list + buffered events for the most recently
+      // active session, so a client connecting mid-session catches up.
+      const snapshot = buildSnapshot()
+      if (snapshot.sessions.length > 0) {
+        sendSSE(res, { type: 'session-list', sessions: snapshot.sessions })
       }
-      if (codexWatcher) sessionList.push(...codexWatcher.getActiveSessions())
-      if (sessionList.length > 0) {
-        sendSSE(res, { type: 'session-list', sessions: sessionList })
+      if (snapshot.events.length > 0) {
+        sendSSE(res, { type: 'agent-event-batch', events: snapshot.events })
       }
+    },
 
-      // Replay buffered events for the most recent active session
-      const sorted = [...sessionList].sort((a, b) => {
-        const aActive = a.status === 'active' ? 1 : 0
-        const bActive = b.status === 'active' ? 1 : 0
-        if (aActive !== bActive) return bActive - aActive
-        return b.lastActivityTime - a.lastActivityTime
-      })
-      if (sorted.length > 0) {
-        const buffered = eventBuffer.get(sorted[0].id)
-        if (buffered) {
-          sendSSE(res, { type: 'agent-event-batch', events: buffered })
-        }
-      }
+    /**
+     * Same catch-up data handleSSE() sends to a newly-connecting client —
+     * for non-HTTP consumers (the Electron main process) that subscribe via
+     * onRawEvent/onRawSessionLifecycle *after* the initial startup scan has
+     * already broadcast for any sessions found active at launch. Without
+     * this, those early broadcasts have no subscribers yet and are lost.
+     */
+    getSnapshot(): { sessions: SessionInfo[]; events: AgentEvent[] } {
+      return buildSnapshot()
     },
 
     onRawEvent(cb: RawEventCallback) {
