@@ -16,8 +16,8 @@ import {
   CodexRolloutParser,
   createCodexRolloutState,
   type CodexParserDelegate,
-} from '../src/codex-rollout-parser'
-import type { AgentEvent } from '../src/protocol'
+} from '../codex-rollout-parser'
+import type { AgentEvent } from '../protocol'
 
 /** Run the sample fixture through the parser, returning all emitted events
  *  and the final rollout state. */

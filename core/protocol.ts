@@ -1,9 +1,11 @@
 /**
- * Message protocol between VS Code extension host and webview.
+ * Message protocol for agent event streaming and webview communication.
  *
- * Extension → Webview: agent events, state updates, connection status
- * Webview → Extension: user commands (inject, connect/disconnect)
+ * Host → Webview: agent events, state updates, connection status
+ * Webview → Host: user commands (inject, connect/disconnect)
  */
+
+import type { TypedDisposable, TypedEvent } from './typed-event-emitter'
 
 // ─── Agent Event Types (from real agent sessions) ────────────────────────────
 
@@ -34,6 +36,25 @@ export interface SessionInfo {
   status: 'active' | 'completed' | 'loaded'
   startTime: number
   lastActivityTime: number
+}
+
+export interface SessionLifecycleEvent {
+  type: 'started' | 'ended' | 'updated'
+  sessionId: string
+  label: string
+}
+
+/** Interface every runtime's watcher implements. Uses portable typed-event
+ *  types (not vscode.Event) so watchers can run in the relay/CLI/desktop too. */
+export interface AgentSessionWatcher extends TypedDisposable {
+  readonly onEvent: TypedEvent<AgentEvent>
+  readonly onSessionDetected: TypedEvent<string>
+  readonly onSessionLifecycle: TypedEvent<SessionLifecycleEvent>
+  start(): void
+  isActive(): boolean
+  isSessionActive(sessionId: string): boolean
+  getActiveSessions(): SessionInfo[]
+  replaySessionStart(sessionIds?: string[]): void
 }
 
 // ─── Extension → Webview Messages ────────────────────────────────────────────

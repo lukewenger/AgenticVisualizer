@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 /**
  * Builds the Electron main + preload bundles via esbuild, mirroring the
- * pattern used by app/build.js and scripts/build-relay.js: bundle the
- * TypeScript entry points for Node, alias `vscode` to the shim so the
- * extension/src code that scripts/relay.ts pulls in (hook-server.ts, etc.)
- * runs outside VS Code.
+ * pattern used by scripts/build-relay.js: bundle the TypeScript entry
+ * points for Node, alias `vscode` to the shim so the core/ watcher code
+ * that scripts/relay.ts pulls in (hook-server.ts, etc.) runs outside VS Code.
  *
  * Also copies the placeholder HTML into dist/ so main.ts can load it when
  * no built renderer is present yet (Phase 2 wires the real renderer).

@@ -2,12 +2,11 @@ import * as vscode from 'vscode'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
-import { AgentEvent, SessionInfo, WatchedSession } from './protocol'
+import { AgentEvent, SessionInfo, WatchedSession, AgentSessionWatcher, SessionLifecycleEvent } from './protocol'
 import {
   INACTIVITY_TIMEOUT_MS, SCAN_INTERVAL_MS, ACTIVE_SESSION_AGE_S, POLL_FALLBACK_MS,
   SESSION_ID_DISPLAY, SYSTEM_PROMPT_BASE_TOKENS, ORCHESTRATOR_NAME,
 } from './constants'
-import type { AgentSessionWatcher, SessionLifecycleEvent } from './session-runtime'
 import { TranscriptParser } from './transcript-parser'
 import { readNewFileLines } from './fs-utils'
 import { handlePermissionDetection } from './permission-detection'

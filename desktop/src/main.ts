@@ -2,10 +2,9 @@
  * Electron main process entry point.
  *
  * Phase 1 scope: start the relay in-process (same `createRelay()` used by the
- * standalone CLI app and the dev relay server), forward its raw event /
- * session-lifecycle callbacks to the renderer over IPC, and open a window
- * that proves the pipe works. No tray, no packaging, no preferences yet —
- * those are later phases.
+ * dev relay server), forward its raw event / session-lifecycle callbacks to
+ * the renderer over IPC, and open a window that proves the pipe works. No
+ * tray, no packaging, no preferences yet — those are later phases.
  */
 import { app, BrowserWindow, Tray, Menu, dialog } from 'electron'
 import * as path from 'path'
@@ -13,9 +12,9 @@ import * as fs from 'fs'
 import { autoUpdater } from 'electron-updater'
 import log from 'electron-log'
 
-// Bundled by esbuild (see desktop/scripts/build.js) — same module the CLI
-// app and dev relay use. Bundling pulls in extension/src/* and aliases the
-// `vscode` import to scripts/vscode-shim.js, exactly like app/build.js does.
+// Bundled by esbuild (see desktop/scripts/build.js) — same module the dev
+// relay uses. Bundling pulls in core/* and aliases the `vscode` import to
+// scripts/vscode-shim.js.
 import { createRelay, type Relay } from '../../scripts/relay'
 import { loadPreferences, savePreferences, type DesktopPreferences } from './preferences'
 
@@ -55,8 +54,8 @@ if (!gotSingleInstanceLock) {
 let isQuitting = false
 
 // Phase 6: createRelay() can throw if the hook server's port is already
-// bound (e.g. the VS Code extension or another instance of this app is
-// already running). That must not crash the app or block the window from
+// bound (e.g. another instance of this app is already running). That must
+// not crash the app or block the window from
 // opening — fall back gracefully and let file-based session detection
 // (transcript polling) keep working.
 async function startRelay(): Promise<void> {
@@ -102,7 +101,7 @@ async function startRelay(): Promise<void> {
     connectionStatus = 'degraded'
     dialog.showErrorBox(
       'Agent Flow',
-      'Could not start the session listener (port already in use — is the VS Code extension or another instance already running?). File-based session detection will still work.',
+      'Could not start the session listener (port already in use — is another instance already running?). File-based session detection will still work.',
     )
   }
   mainWindow?.webContents.send('connection-status', { status: connectionStatus, source: 'electron-main' })

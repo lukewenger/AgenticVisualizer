@@ -6,15 +6,10 @@
     "dev:relay": "node scripts/build-relay.js && node scripts/.dev-relay.js",
     "dev:demo": "NEXT_PUBLIC_DEMO=1 pnpm run dev:web",
     "dev:web": "pnpm --filter agent-flow-web run dev",
-    "dev:extension": "pnpm --filter agent-flow run watch",
     "dev:desktop": "pnpm --filter agent-flow-desktop run dev",
-    "build:extension": "pnpm --filter agent-flow run build",
     "build:desktop": "pnpm --filter agent-flow-desktop run build && pnpm --filter agent-flow-desktop run build:renderer && pnpm --filter agent-flow-desktop run package",
     "build:web": "pnpm --filter agent-flow-web run build",
-    "build:webview": "pnpm --filter agent-flow-web run build:webview",
-    "build:all": "pnpm run build:webview && pnpm run build:extension",
-    "build:app": "node app/build.js",
-    "test": "node --import tsx --test \"scripts/**/*.test.ts\" \"app/src/**/*.test.ts\""
+    "test": "node --import tsx --test \"scripts/**/*.test.ts\" \"core/test/**/*.test.ts\""
   },
   "devDependencies": {
     "@rolldown/binding-win32-x64-msvc": "1.0.0-rc.11",

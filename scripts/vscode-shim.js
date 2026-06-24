@@ -1,6 +1,6 @@
 /**
- * Minimal vscode module shim for running extension code outside VS Code.
- * Only implements what hook-server.ts and session-watcher.ts actually use.
+ * Minimal vscode module shim for running core/ watcher code outside VS Code.
+ * Only implements what core/hook-server.ts and core/session-watcher.ts actually use.
  */
 'use strict'
 

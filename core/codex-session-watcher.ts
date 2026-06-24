@@ -14,7 +14,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
-import { AgentEvent, SessionInfo } from './protocol'
+import { AgentEvent, SessionInfo, AgentSessionWatcher, SessionLifecycleEvent } from './protocol'
 import {
   ACTIVE_SESSION_AGE_S, INACTIVITY_TIMEOUT_MS, ORCHESTRATOR_NAME,
   POLL_FALLBACK_MS, SCAN_INTERVAL_MS, SESSION_ID_DISPLAY,
@@ -24,7 +24,6 @@ import { createLogger } from './logger'
 import {
   CodexRolloutParser, CodexRolloutState, createCodexRolloutState,
 } from './codex-rollout-parser'
-import type { AgentSessionWatcher, SessionLifecycleEvent } from './session-runtime'
 import { TypedEventEmitter } from './typed-event-emitter'
 
 const log = createLogger('CodexSessionWatcher')

@@ -5,7 +5,7 @@
  */
 import * as http from 'http'
 import { createRelay } from './relay'
-import { DEFAULT_RELAY_PORT, DEV_WEB_ORIGIN_PATTERN } from '../extension/src/constants'
+import { DEFAULT_RELAY_PORT, DEV_WEB_ORIGIN_PATTERN } from '../core/constants'
 
 async function main() {
   const workspace = process.argv[2] || process.cwd()

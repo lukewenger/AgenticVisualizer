@@ -39,7 +39,7 @@ function resolveNodePath() {
   return 'node'
 }
 
-// ─── Hook script content (mirrors extension/src/discovery.ts) ───────────────
+// ─── Hook script content ────────────────────────────────────────────────────
 
 function getHookScriptContent() {
   return `#!/usr/bin/env node

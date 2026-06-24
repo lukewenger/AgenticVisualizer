@@ -7,7 +7,7 @@ import { SimulationEvent } from '@/lib/agent-types'
 interface BridgeHookResult {
   isVSCode: boolean
   connectionStatus: ConnectionStatus
-  /** Events received from VS Code extension, converted to SimulationEvent format */
+  /** Events received from the bridge, converted to SimulationEvent format */
   pendingEvents: readonly SimulationEvent[]
   /** Call after consuming events to clear the queue */
   consumeEvents: () => void
@@ -17,7 +17,7 @@ interface BridgeHookResult {
   disable1MContext: boolean
   /** Open a file in the VS Code editor */
   bridgeOpenFile: (filePath: string, line?: number) => void
-  /** Known sessions from the extension */
+  /** Known sessions from the bridge */
   sessions: SessionInfo[]
   /** Currently selected session ID */
   selectedSessionId: string | null
@@ -79,7 +79,7 @@ export function useVSCodeBridge(): BridgeHookResult {
     const bridge = vscodeBridge
     if (!bridge) return
 
-    // Skip in VS Code — extension handles events via postMessage
+    // Skip in VS Code — the webview host handles events via postMessage
     if (bridge.isVSCode) return
 
     // Skip in Electron — main process delivers events via IPC (see

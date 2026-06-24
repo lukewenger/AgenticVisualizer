@@ -8,19 +8,19 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 
-import { HookServer } from '../extension/src/hook-server'
-import { AgentEvent, SessionInfo, WatchedSession } from '../extension/src/protocol'
-import { TranscriptParser } from '../extension/src/transcript-parser'
-import { readNewFileLines } from '../extension/src/fs-utils'
-import { scanSubagentsDir, readSubagentNewLines } from '../extension/src/subagent-watcher'
-import { handlePermissionDetection } from '../extension/src/permission-detection'
-import { CodexSessionWatcher } from '../extension/src/codex-session-watcher'
+import { HookServer } from '../core/hook-server'
+import { AgentEvent, SessionInfo, WatchedSession } from '../core/protocol'
+import { TranscriptParser } from '../core/transcript-parser'
+import { readNewFileLines } from '../core/fs-utils'
+import { scanSubagentsDir, readSubagentNewLines } from '../core/subagent-watcher'
+import { handlePermissionDetection } from '../core/permission-detection'
+import { CodexSessionWatcher } from '../core/codex-session-watcher'
 import {
   INACTIVITY_TIMEOUT_MS, SCAN_INTERVAL_MS, ACTIVE_SESSION_AGE_S, POLL_FALLBACK_MS,
   SESSION_ID_DISPLAY, SYSTEM_PROMPT_BASE_TOKENS, ORCHESTRATOR_NAME,
   HOOK_SERVER_NOT_STARTED, WORKSPACE_HASH_LENGTH,
-} from '../extension/src/constants'
-import { setLogLevel } from '../extension/src/logger'
+} from '../core/constants'
+import { setLogLevel } from '../core/logger'
 import type { TelemetryClient } from './telemetry'
 
 const MAX_EVENT_BUFFER = 5000
@@ -423,7 +423,7 @@ export interface RelayOptions {
   verbose?: boolean
   telemetry?: TelemetryClient
   /** Which runtimes to watch. Defaults to AGENT_FLOW_RUNTIME env var, or 'auto'.
-   *  Mirrors the extension's `agentVisualizer.runtime` setting so users of the
+   *  Mirrors the `agentVisualizer.runtime` setting so users of the
    *  dev relay and `npx agent-flow-app` have a way to opt out of one runtime. */
   runtime?: RelayRuntimeMode
 }
