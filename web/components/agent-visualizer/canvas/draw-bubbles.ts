@@ -1,5 +1,5 @@
 import { Agent, NODE } from '@/lib/agent-types'
-import { COLORS, withAlpha } from '@/lib/colors'
+import { COLORS, withAlpha, getRoleLabel } from '@/lib/colors'
 import { BUBBLE_MAX_W, BUBBLE_GAP, BUBBLE_MAX_LINES, AGENT_DRAW, BUBBLE_DRAW } from '@/lib/canvas-constants'
 import { bubbleAlpha } from './bubble-utils'
 import { measureTextCached } from './render-cache'
@@ -29,7 +29,7 @@ export function drawMessageBubblesWorld(
       const isThinking = role === 'thinking'
       const bgColor = isThinking ? COLORS.bubbleThinkingBase : role === 'user' ? COLORS.bubbleUserBase : COLORS.bubbleAssistantBase
       const textColor = isThinking ? COLORS.roleThinkingText : role === 'user' ? COLORS.roleUserText : COLORS.roleAssistantText
-      const label = isThinking ? '\uD83D\uDCAD THINKING' : role === 'user' ? 'USER' : 'CLAUDE'
+      const label = isThinking ? '\uD83D\uDCAD THINKING' : role === 'user' ? 'USER' : getRoleLabel('assistant', agent.runtime)
 
       // Thinking bubbles: smaller font, tighter spacing, more translucent
       const style = isThinking ? BUBBLE_DRAW.thinking : BUBBLE_DRAW.normal

@@ -225,6 +225,13 @@ export const ROLE_COLORS: Record<string, { bg: string; bgSelected: string; text:
   user:      { bg: COLORS.roleUserBg,       bgSelected: COLORS.roleUserBgSelected,       text: COLORS.roleUserText,       label: 'USER' },
 } as const
 
+/** Assistant/thinking/user role label, accounting for which runtime produced the message
+ *  (e.g. a Codex-produced assistant message should say "CODEX", not "CLAUDE"). */
+export function getRoleLabel(type: string, runtime?: string): string {
+  if (type === 'assistant' && runtime === 'codex') return 'CODEX'
+  return ROLE_COLORS[type]?.label ?? ROLE_COLORS.assistant.label
+}
+
 // ─── Color Helper Functions ──────────────────────────────────────────────────
 
 export function getStateColor(state: AgentState): string {

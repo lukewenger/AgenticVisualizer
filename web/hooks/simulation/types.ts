@@ -59,6 +59,8 @@ export interface ConversationMessage {
   timestamp: number
   toolName?: string
   inputData?: Record<string, unknown>
+  /** Which agent runtime produced this message — used to pick the correct role label. */
+  runtime?: string
 }
 
 /** Max canvas message bubbles kept per agent (oldest are dropped) */

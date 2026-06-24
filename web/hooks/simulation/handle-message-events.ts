@@ -54,7 +54,7 @@ export function handleMessage(
     }
   }
 
-  appendConversation(state.conversations, agentName, { type: msgType, content, timestamp: currentTime })
+  appendConversation(state.conversations, agentName, { type: msgType, content, timestamp: currentTime, runtime: msgAgent?.runtime })
 }
 
 export function handleContextUpdate(

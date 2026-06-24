@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Agent, Z, type AgentState } from '@/lib/agent-types'
-import { COLORS, ROLE_COLORS, getStateColor } from '@/lib/colors'
+import { COLORS, ROLE_COLORS, getRoleLabel, getStateColor } from '@/lib/colors'
 import type { ConversationMessage } from '@/hooks/simulation/types'
 import { useClickOutside } from '@/hooks/use-click-outside'
 import { useVirtualList } from '@/hooks/use-virtual-list'
@@ -357,7 +357,7 @@ function MessageRow({ message, agentId, agentName, showAgent, isSelected, onClic
       {/* Header row */}
       <div className="flex items-center gap-1.5 mb-0.5">
         <span className="text-[9px] font-mono font-semibold" style={{ color: role.text + '90' }}>
-          {role.label}
+          {getRoleLabel(message.type, message.runtime)}
         </span>
         {showAgent && (
           <span className="text-[9px] font-mono" style={{ color: COLORS.textMuted }}>
