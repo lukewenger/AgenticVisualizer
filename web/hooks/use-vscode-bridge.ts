@@ -33,6 +33,16 @@ interface BridgeHookResult {
   sessionsWithActivity: Set<string>
   /** Remove a session from the list */
   removeSession: (sessionId: string) => void
+  /** Bumped on every incoming event (any session) — used by independent consumers
+   *  (e.g. split-view panes) to know when to re-check their own event buffer. */
+  eventVersion: number
+  /** Pure read of the full buffered event log for a session (for save/export and
+   *  per-pane event consumption). Does not mutate or affect the live delivery pipeline. */
+  getSessionEvents: (sessionId: string) => SimulationEvent[]
+  /** Inject a session loaded from disk, with its full event log pre-seeded.
+   *  Bypasses the live SSE/postMessage pipeline entirely — the loaded session
+   *  then replays through the normal simulation/seek machinery like any other. */
+  loadLocalSession: (envelope: { session: SessionInfo; events: SimulationEvent[] }) => void
 }
 
 /**
@@ -51,7 +61,7 @@ export function useVSCodeBridge(): BridgeHookResult {
   )
   const [disable1MContext, setDisable1MContext] = useState(false)
   const pendingEventsRef = useRef<SimulationEvent[]>([])
-  const [, setEventVersion] = useState(0) // trigger re-render on new events
+  const [eventVersion, setEventVersion] = useState(0) // trigger re-render on new events
 
   // Session state
   const [sessions, setSessions] = useState<SessionInfo[]>([])
@@ -136,7 +146,6 @@ export function useVSCodeBridge(): BridgeHookResult {
       const selected = selectedSessionIdRef.current
       if (selected && event.sessionId === selected && !sessionSwitchPendingRef.current) {
         pendingEventsRef.current.push(simEvent)
-        setEventVersion(v => v + 1)
       } else if (event.sessionId && event.sessionId !== selected) {
         // Track background activity for unselected sessions
         setSessionsWithActivity(prev => {
@@ -146,6 +155,10 @@ export function useVSCodeBridge(): BridgeHookResult {
           return next
         })
       }
+
+      // Bump unconditionally (not just on selected-session delivery) so independent
+      // consumers like split-view panes can detect new events for ANY session.
+      setEventVersion(v => v + 1)
 
       // Re-add dismissed sessions when new events arrive
       if (event.sessionId && dismissedSessionsRef.current.has(event.sessionId)) {
@@ -303,6 +316,23 @@ export function useVSCodeBridge(): BridgeHookResult {
     vscodeBridge?.openFile(filePath, line)
   }, [])
 
+  /** Pure read — does not mutate state or affect live event delivery. */
+  const getSessionEvents = useCallback((sessionId: string): SimulationEvent[] => {
+    return sessionEventsRef.current.get(sessionId) ?? []
+  }, [])
+
+  const loadLocalSession = useCallback((envelope: { session: SessionInfo; events: SimulationEvent[] }) => {
+    const session: SessionInfo = { ...envelope.session, status: 'loaded' }
+    sessionEventsRef.current.set(session.id, envelope.events)
+    setSessions(prev => {
+      if (prev.find(s => s.id === session.id)) {
+        return prev.map(s => s.id === session.id ? session : s)
+      }
+      return [...prev, session]
+    })
+    setEventVersion(v => v + 1)
+  }, [])
+
   return {
     isVSCode,
     connectionStatus,
@@ -319,5 +349,8 @@ export function useVSCodeBridge(): BridgeHookResult {
     getSessionEventCount,
     sessionsWithActivity,
     removeSession,
+    eventVersion,
+    getSessionEvents,
+    loadLocalSession,
   }
 }

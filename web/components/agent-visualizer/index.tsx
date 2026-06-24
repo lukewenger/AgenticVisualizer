@@ -23,6 +23,7 @@ import { COLORS } from "@/lib/colors"
 import { MOCK_DURATION } from "@/lib/mock-scenario"
 import { MessageFeedPanel } from "./message-feed-panel"
 import { TopBar } from "./top-bar"
+import { SplitView } from "./split-view"
 import { useAudioEffects } from "@/hooks/use-audio-effects"
 
 export function AgentVisualizer() {
@@ -69,6 +70,28 @@ export function AgentVisualizer() {
   const [showTimeline, setShowTimeline] = useState(false)
   const [showFileAttention, setShowFileAttention] = useState(false)
   const [showTranscript, setShowTranscript] = useState(false)
+
+  // Split view: up to 4 sessions rendered side-by-side, independent of the
+  // single-session view below (which keeps its own keyboard shortcuts/audio).
+  const [splitViewActive, setSplitViewActive] = useState(false)
+  const [splitSessionIds, setSplitSessionIds] = useState<(string | null)[]>([null, null, null, null])
+  const handleToggleSplitView = useCallback(() => {
+    setSplitViewActive(prev => {
+      const next = !prev
+      if (next) {
+        // Default-fill empty slots from currently known sessions on first activation
+        setSplitSessionIds(ids => {
+          if (ids.some(id => id !== null)) return ids
+          const filled = bridge.sessions.slice(0, 4).map(s => s.id)
+          return [filled[0] ?? null, filled[1] ?? null, filled[2] ?? null, filled[3] ?? null]
+        })
+      }
+      return next
+    })
+  }, [bridge.sessions])
+  const handleSlotChange = useCallback((slotIndex: number, sessionId: string | null) => {
+    setSplitSessionIds(prev => prev.map((id, i) => i === slotIndex ? sessionId : id))
+  }, [])
 
   // Mutually exclusive panel toggling — opening one closes the others
   const toggleExclusivePanel = useCallback((panel: 'files' | 'transcript' | 'cost') => {
@@ -261,6 +284,14 @@ export function AgentVisualizer() {
         </div>
       )}
 
+      {splitViewActive ? (
+        <SplitView
+          sessions={bridge.sessions}
+          slotSessionIds={splitSessionIds}
+          onSlotChange={handleSlotChange}
+        />
+      ) : (
+      <>
       {/* Canvas fills everything */}
       <AgentCanvas
         simulationRef={frameRef}
@@ -388,6 +419,8 @@ export function AgentVisualizer() {
         currentTime={currentTime}
         onClose={() => setShowTimeline(false)}
       />
+      </>
+      )}
 
       {/* Top bar: session tabs + info/controls */}
       <TopBar
@@ -408,6 +441,9 @@ export function AgentVisualizer() {
         onTogglePanel={toggleExclusivePanel}
         onToggleTimeline={() => setShowTimeline(prev => !prev)}
         onToggleMute={handleToggleMute}
+        splitViewActive={splitViewActive}
+        onToggleSplitView={handleToggleSplitView}
+        saveLoadControls={{ bridge, sessionId: bridge.selectedSessionId, sessionLabel: bridge.sessions.find(s => s.id === bridge.selectedSessionId)?.label }}
       />
     </div>
     </OpenFileProvider>

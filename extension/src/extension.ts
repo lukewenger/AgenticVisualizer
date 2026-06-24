@@ -215,6 +215,14 @@ function wirePanel(panel: VisualizerPanel): void {
         logFn(message.message)
         break
       }
+
+      case 'save-session':
+        handleSaveSession(message.json, message.suggestedName)
+        break
+
+      case 'request-load-session':
+        handleRequestLoadSession(panel)
+        break
     }
   })
 }
@@ -268,6 +276,39 @@ async function handleOpenFile(filePath: string, line?: number): Promise<void> {
     }
   } catch (err) {
     log.error(`Failed to open file: ${filePath}`, err)
+  }
+}
+
+async function handleSaveSession(json: string, suggestedName: string): Promise<void> {
+  try {
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(suggestedName),
+      filters: { 'Agent Flow Session': ['json'] },
+    })
+    if (!uri) { return }
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(json, 'utf8'))
+  } catch (err) {
+    vscode.window.showErrorMessage(`Failed to save session: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+
+async function handleRequestLoadSession(panel: VisualizerPanel): Promise<void> {
+  try {
+    const fileUri = await vscode.window.showOpenDialog({
+      canSelectFiles: true,
+      canSelectMany: false,
+      filters: { 'Agent Flow Session': ['json'] },
+    })
+    if (!fileUri?.[0]) {
+      panel.postMessage({ type: 'load-session-result', json: null })
+      return
+    }
+    const bytes = await vscode.workspace.fs.readFile(fileUri[0])
+    const json = Buffer.from(bytes).toString('utf8')
+    panel.postMessage({ type: 'load-session-result', json })
+  } catch (err) {
+    vscode.window.showErrorMessage(`Failed to load session: ${err instanceof Error ? err.message : String(err)}`)
+    panel.postMessage({ type: 'load-session-result', json: null })
   }
 }
 

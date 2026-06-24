@@ -45,6 +45,7 @@ class VSCodeBridge {
   private statusListeners: StatusCallback[] = []
   private configListeners: ConfigCallback[] = []
   private sessionListeners: SessionCallback[] = []
+  private pendingLoadSessionResolve: ((json: string | null) => void) | null = null
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -158,6 +159,14 @@ class VSCodeBridge {
           cb('updated', { sessionId: data.sessionId, label: data.label })
         }
         break
+
+      case 'load-session-result':
+        if (this.pendingLoadSessionResolve) {
+          const resolve = this.pendingLoadSessionResolve
+          this.pendingLoadSessionResolve = null
+          resolve(data.json ?? null)
+        }
+        break
     }
   }
 
@@ -208,6 +217,22 @@ class VSCodeBridge {
 
   openFile(filePath: string, line?: number): void {
     this.postToExtension({ type: 'open-file', filePath, line })
+  }
+
+  /** Ask the extension host to show a save dialog and write `json` to disk. */
+  saveSession(json: string, suggestedName: string): void {
+    this.postToExtension({ type: 'save-session', json, suggestedName })
+  }
+
+  /** Ask the extension host to show an open dialog and read a session file back.
+   *  Resolves with the file contents, or null if the user cancelled.
+   *  Note: if a second call is made before the first resolves, the first
+   *  call's promise will never resolve (edge case, not handled in v1). */
+  requestLoadSession(): Promise<string | null> {
+    return new Promise((resolve) => {
+      this.pendingLoadSessionResolve = resolve
+      this.postToExtension({ type: 'request-load-session' })
+    })
   }
 
   private postToExtension(message: Record<string, unknown>): void {

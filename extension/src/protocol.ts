@@ -31,7 +31,7 @@ export interface AgentEvent {
 export interface SessionInfo {
   id: string
   label: string
-  status: 'active' | 'completed'
+  status: 'active' | 'completed' | 'loaded'
   startTime: number
   lastActivityTime: number
 }
@@ -48,6 +48,7 @@ export type ExtensionToWebviewMessage =
   | { type: 'session-started'; session: SessionInfo }
   | { type: 'session-ended'; sessionId: string }
   | { type: 'session-updated'; sessionId: string; label: string }
+  | { type: 'load-session-result'; json: string | null }
 
 export interface VisualizerConfig {
   mode: 'live' | 'replay'
@@ -64,6 +65,8 @@ export type WebviewToExtensionMessage =
   | { type: 'request-disconnect' }
   | { type: 'open-file'; filePath: string; line?: number }
   | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string }
+  | { type: 'save-session'; json: string; suggestedName: string }
+  | { type: 'request-load-session' }
 
 // ─── Transcript Types (from Claude Code JSONL files) ─────────────────────────
 

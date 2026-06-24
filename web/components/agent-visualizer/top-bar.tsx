@@ -6,6 +6,8 @@ import { COLORS } from "@/lib/colors"
 import { formatTokens } from "@/lib/utils"
 import { agentCost } from "./canvas/draw-cost"
 import { SessionTabs } from "./session-tabs"
+import { SplitViewToggle } from "./split-view-toggle"
+import { SaveLoadControls, type SaveLoadControlsProps } from "./save-load-controls"
 import type { SessionInfo, ConnectionStatus } from "@/lib/bridge-types"
 
 // ─── Mute/Unmute SVG Icons ───────────────────────────────────────────────────
@@ -98,6 +100,11 @@ export interface TopBarProps {
   onTogglePanel: (panel: 'files' | 'transcript' | 'cost') => void
   onToggleTimeline: () => void
   onToggleMute: () => void
+  // Split view
+  splitViewActive: boolean
+  onToggleSplitView: () => void
+  // Save/Load
+  saveLoadControls: SaveLoadControlsProps
 }
 
 export const TopBar = memo(function TopBar({
@@ -107,6 +114,8 @@ export const TopBar = memo(function TopBar({
   agentCount, totalTokens,
   showFileAttention, showTranscript, showCostOverlay, showTimeline, isMuted,
   onTogglePanel, onToggleTimeline, onToggleMute,
+  splitViewActive, onToggleSplitView,
+  saveLoadControls,
 }: TopBarProps) {
   return (
     <div className="absolute top-3 left-3 right-3 flex items-center gap-4 font-mono text-[10px]" style={{ zIndex: Z.info }}>
@@ -156,6 +165,8 @@ export const TopBar = memo(function TopBar({
 
         {/* Independent toggles */}
         <ToggleButton active={showTimeline} onClick={onToggleTimeline}>Timeline</ToggleButton>
+        <SplitViewToggle active={splitViewActive} onToggle={onToggleSplitView} />
+        <SaveLoadControls {...saveLoadControls} />
         <ToggleButton active={!isMuted} onClick={onToggleMute} style={{ border: `1px solid ${COLORS.toggleBorder}` }}>
           {isMuted ? <MutedIcon /> : <UnmutedIcon />}
         </ToggleButton>
