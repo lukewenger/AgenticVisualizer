@@ -226,6 +226,15 @@ function watchSession(sessionId: string, filePath: string) {
   session.fileWatcher = fs.watch(filePath, (eventType) => {
     if (eventType === 'change') readNewLines(sessionId)
   })
+  // fs.watch can emit 'error' asynchronously (e.g. the file is deleted/locked
+  // when the underlying session process is killed). Without a listener this
+  // throws an uncaught exception and brings down the whole relay process —
+  // taking every session with it. The poll timer below covers us either way.
+  session.fileWatcher.on('error', (err) => {
+    log(`[session] file watcher error for ${sessionId.slice(0, SESSION_ID_DISPLAY)}:`, err)
+    session.fileWatcher?.close()
+    session.fileWatcher = null
+  })
 
   session.pollTimer = setInterval(() => {
     readNewLines(sessionId)
@@ -376,9 +385,9 @@ export interface Relay {
    */
   onRawSessionLifecycle: (cb: RawSessionLifecycleCallback) => () => void
   /**
-   * Current session list + buffered events for the most recently active
-   * session — the same catch-up data handleSSE() sends a newly-connecting
-   * client. Non-HTTP consumers that subscribe via onRawEvent/onRawSessionLifecycle
+   * Current session list + buffered events for every known session — the
+   * same catch-up data handleSSE() sends a newly-connecting client.
+   * Non-HTTP consumers that subscribe via onRawEvent/onRawSessionLifecycle
    * should call this once right after subscribing, since sessions already
    * active at relay-startup time broadcast before any subscriber existed.
    */
@@ -446,6 +455,11 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
       if (fs.existsSync(CLAUDE_DIR)) {
         try {
           projectDirWatcher = fs.watch(CLAUDE_DIR, () => scanForActiveSessions(workspace))
+          projectDirWatcher.on('error', (err) => {
+            log('[relay] project dir watcher error:', err)
+            projectDirWatcher?.close()
+            projectDirWatcher = null
+          })
         } catch {}
       }
     } else {
@@ -456,6 +470,11 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
         try {
           projectDirWatcher = fs.watch(projectDir, (_eventType, filename) => {
             if (filename?.endsWith('.jsonl')) scanForActiveSessions(workspace)
+          })
+          projectDirWatcher.on('error', (err) => {
+            log('[relay] project dir watcher error:', err)
+            projectDirWatcher?.close()
+            projectDirWatcher = null
           })
         } catch {}
       }
@@ -493,13 +512,14 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
     }
     if (codexWatcher) sessionList.push(...codexWatcher.getActiveSessions())
 
-    const sorted = [...sessionList].sort((a, b) => {
-      const aActive = a.status === 'active' ? 1 : 0
-      const bActive = b.status === 'active' ? 1 : 0
-      if (aActive !== bActive) return bActive - aActive
-      return b.lastActivityTime - a.lastActivityTime
-    })
-    const events = sorted.length > 0 ? (eventBuffer.get(sorted[0].id) ?? []) : []
+    // Buffered events for every known session, not just the most recently
+    // active one — a newly-connecting client (or a split-view pane assigned
+    // to a less-active session) needs the full backlog for whichever
+    // session(s) it ends up displaying, not only the single busiest one.
+    const events: AgentEvent[] = []
+    for (const session of sessionList) {
+      events.push(...(eventBuffer.get(session.id) ?? []))
+    }
 
     return { sessions: sessionList, events }
   }
@@ -526,8 +546,8 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
         log(`[sse] Client disconnected (${sseClients.size} total)`)
       })
 
-      // Send current session list + buffered events for the most recently
-      // active session, so a client connecting mid-session catches up.
+      // Send current session list + buffered events for every known
+      // session, so a client connecting mid-session catches up.
       const snapshot = buildSnapshot()
       if (snapshot.sessions.length > 0) {
         sendSSE(res, { type: 'session-list', sessions: snapshot.sessions })

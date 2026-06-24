@@ -286,6 +286,7 @@ export function AgentVisualizer() {
 
       {splitViewActive ? (
         <SplitView
+          bridge={bridge}
           sessions={bridge.sessions}
           slotSessionIds={splitSessionIds}
           onSlotChange={handleSlotChange}
@@ -411,16 +412,18 @@ export function AgentVisualizer() {
         conversation={sessionConversation}
         onClose={() => setShowTranscript(false)}
       />
+      </>
+      )}
 
-      {/* Timeline panel (slide-in from bottom) */}
+      {/* Timeline panel (slide-in from bottom) — rendered regardless of split
+          view, since the toggle button lives in the always-visible TopBar and
+          previously had no visible effect while split view was active. */}
       <TimelinePanel
         visible={showTimeline}
         timelineEntries={timelineEntries}
         currentTime={currentTime}
         onClose={() => setShowTimeline(false)}
       />
-      </>
-      )}
 
       {/* Top bar: session tabs + info/controls */}
       <TopBar

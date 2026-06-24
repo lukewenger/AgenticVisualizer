@@ -179,6 +179,11 @@ export class CodexSessionWatcher implements AgentSessionWatcher {
     if (fs.existsSync(root)) {
       try {
         const rootWatcher = fs.watch(root, { recursive: false }, () => this.scanForSessions())
+        rootWatcher.on('error', (err) => {
+          log.debug('Root dir watcher error:', err)
+          rootWatcher.close()
+          this.dirWatchers.delete(root)
+        })
         this.dirWatchers.set(root, rootWatcher)
       } catch (err) { log.debug('Root dir watch failed:', err) }
     }
@@ -195,6 +200,11 @@ export class CodexSessionWatcher implements AgentSessionWatcher {
       if (!this.dirWatchers.has(dir)) {
         try {
           const w = fs.watch(dir, () => this.scanForSessions())
+          w.on('error', (err) => {
+            log.debug('Day dir watcher error:', dir, err)
+            w.close()
+            this.dirWatchers.delete(dir)
+          })
           this.dirWatchers.set(dir, w)
         } catch (err) { log.debug('Dir watch failed:', dir, err) }
       }
@@ -290,6 +300,11 @@ export class CodexSessionWatcher implements AgentSessionWatcher {
 
     try {
       session.fileWatcher = fs.watch(filePath, () => this.readNewLines(sessionId))
+      session.fileWatcher.on('error', (err) => {
+        log.debug('File watcher error:', filePath, err)
+        session.fileWatcher?.close()
+        session.fileWatcher = null
+      })
     } catch (err) { log.debug('File watch failed:', filePath, err) }
 
     // fs.watch on macOS sometimes silently stops after long idle — poll as backup.

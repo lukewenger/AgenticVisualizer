@@ -83,3 +83,11 @@ AgenticVisualizer emits no telemetry.
 Apache 2.0 — see [LICENSE](LICENSE) for details.
 
 This project is a fork of [Agent Flow](https://github.com/patoles/agent-flow). The name "Agent Flow" and associated logos remain trademarks of Simon Patole and are not used here — see [TRADEMARK.md](TRADEMARK.md).
+
+
+## Installation Guide for dummies on Windows
+
+Preqisition: node.js
+ 
+For installing this repo, run <code> pnpm run build:desktop </code> from root.
+under desktop/dist-packages is the installation exe and the compiled program itsself.

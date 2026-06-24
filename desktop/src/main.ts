@@ -148,13 +148,18 @@ function createWindow(): Promise<void> {
     mainWindow.loadFile(path.join(__dirname, 'placeholder.html'))
   }
 
-  // Phase 3: closing the window hides it instead of quitting, so the app
-  // keeps running in the tray (relay stays alive, sessions keep streaming).
+  // Closing the window fully quits the app (relay, hook server, file
+  // watchers, tray icon all torn down via 'before-quit' -> stopRelay()).
+  // macOS is the one exception: red-X-to-hide is the platform convention
+  // there, and the dock icon is already hidden (see app.dock?.hide() below)
+  // so the tray's "Show"/"Quit" items remain the only way back in.
   mainWindow.on('close', (event) => {
-    if (!isQuitting) {
+    if (process.platform === 'darwin' && !isQuitting) {
       event.preventDefault()
       mainWindow?.hide()
+      return
     }
+    isQuitting = true
   })
 
   mainWindow.on('closed', () => {
@@ -312,7 +317,7 @@ function setupApplicationMenu() {
                   type: 'info',
                   title: 'About AgenticVisualizer',
                   message: 'AgenticVisualizer',
-                  detail: `Version ${app.getVersion()}`,
+                  detail: `Lukis Visualizer App Version ${app.getVersion()}`,
                 })
               },
             },

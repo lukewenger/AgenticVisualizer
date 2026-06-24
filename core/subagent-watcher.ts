@@ -55,6 +55,11 @@ export function scanSubagentsDir(
       session.subagentsDirWatcher = fs.watch(session.subagentsDir, () => {
         scanSubagentsDir(delegate, parser, sessionId)
       })
+      session.subagentsDirWatcher.on('error', (err) => {
+        log.debug('Subagent dir watcher error:', err)
+        session.subagentsDirWatcher?.close()
+        session.subagentsDirWatcher = null
+      })
     } catch (err) { log.debug('Subagent dir watch failed:', err) }
   }
 
@@ -138,6 +143,11 @@ function startWatchingSubagentFile(
   try {
     state.watcher = fs.watch(filePath, () => {
       readSubagentNewLines(delegate, parser, filePath, sessionId)
+    })
+    state.watcher.on('error', (err) => {
+      log.debug('Subagent file watcher error:', err)
+      state.watcher?.close()
+      state.watcher = null
     })
   } catch (err) { log.debug('Subagent file watch failed:', err) }
 }

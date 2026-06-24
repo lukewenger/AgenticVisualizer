@@ -187,6 +187,11 @@ export class SessionWatcher implements AgentSessionWatcher {
             }
           } catch { /* stat may fail for transient files */ }
         })
+        this.dirWatcher.on('error', (err) => {
+          log.debug('CLAUDE_DIR watcher error:', err)
+          this.dirWatcher?.close()
+          this.dirWatcher = null
+        })
       } catch (err) { log.debug('CLAUDE_DIR watch failed:', err) }
     }
   }
@@ -203,6 +208,11 @@ export class SessionWatcher implements AgentSessionWatcher {
             this.scanForActiveSessions()
           }
         }
+      })
+      watcher.on('error', (err) => {
+        log.debug('Project dir watcher error:', err)
+        watcher.close()
+        this.dirWatchers.delete(projectDir)
       })
       this.dirWatchers.set(projectDir, watcher)
     } catch (err) { log.debug('Dir watch failed (may not exist yet):', err) }
@@ -421,6 +431,11 @@ export class SessionWatcher implements AgentSessionWatcher {
       if (eventType === 'change') {
         this.readNewLines(sessionId)
       }
+    })
+    session.fileWatcher.on('error', (err) => {
+      log.debug(`File watcher error for ${sessionId.slice(0, SESSION_ID_DISPLAY)}:`, err)
+      session.fileWatcher?.close()
+      session.fileWatcher = null
     })
 
     // Poll fallback — fs.watch on macOS can silently stop firing events

@@ -2,31 +2,37 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAgentSimulation } from '@/hooks/use-agent-simulation'
-import { useVSCodeBridge } from '@/hooks/use-vscode-bridge'
+import type { useVSCodeBridge } from '@/hooks/use-vscode-bridge'
 import { useSessionPaneEvents } from '@/hooks/use-session-pane-events'
 import { AgentCanvas } from './canvas'
 import { TIMING } from '@/lib/agent-types'
 import { COLORS } from '@/lib/colors'
 import { formatTokens } from '@/lib/utils'
+import type { SessionInfo } from '@/lib/bridge-types'
 
 const noop = () => {}
 
 export interface SessionPaneProps {
+  bridge: ReturnType<typeof useVSCodeBridge>
   sessionId: string
-  label: string
+  /** All known sessions, for the inline session-reassignment dropdown */
+  sessions: SessionInfo[]
+  onSelectSession: (sessionId: string | null) => void
 }
 
 /**
  * Per-pane equivalent of the main AgentVisualizer view, generalized to an
- * arbitrary session id. Each pane runs its own bridge subscription and its
- * own simulation instance, independently rendering/playing in a grid cell.
+ * arbitrary session id. Shares the single bridge instance from the parent
+ * (rather than creating its own) so it reads from the already-populated
+ * per-session event buffers instead of an empty, freshly-mounted one. Each
+ * pane still runs its own simulation instance, independently rendering/playing
+ * in its grid cell.
  *
  * Deliberately does NOT call useKeyboardShortcuts or useAudioEffects — those
  * must stay exclusive to the single/main view (global window listener and
  * real AudioContext respectively).
  */
-export function SessionPane({ sessionId, label }: SessionPaneProps) {
-  const bridge = useVSCodeBridge()
+export function SessionPane({ bridge, sessionId, sessions, onSelectSession }: SessionPaneProps) {
   const { pendingEvents, consumeEvents } = useSessionPaneEvents(bridge, sessionId)
 
   // Ref updated synchronously each render so the animation frame never uses
@@ -88,7 +94,21 @@ export function SessionPane({ sessionId, label }: SessionPaneProps) {
         }}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <span className="truncate" style={{ color: COLORS.textPrimary }}>{label}</span>
+          <select
+            value={sessionId}
+            onChange={(e) => onSelectSession(e.target.value || null)}
+            className="font-mono text-[10px] px-1 py-0.5 min-w-0"
+            style={{
+              background: COLORS.panelBg,
+              color: COLORS.textPrimary,
+              border: `1px solid ${COLORS.holoBorder08}`,
+              maxWidth: 120,
+            }}
+          >
+            {sessions.map(s => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
           <span style={{ color: COLORS.textMuted }}>{agents.size} agents</span>
           <span style={{ color: COLORS.textMuted }}>{formatTokens(totalTokens)} tok</span>
         </div>
