@@ -402,6 +402,14 @@ export interface Relay {
    * (started/ended/updated). Returns an unsubscribe function.
    */
   onRawSessionLifecycle: (cb: RawSessionLifecycleCallback) => () => void
+  /**
+   * Current session list + buffered events for the most recently active
+   * session — the same catch-up data handleSSE() sends a newly-connecting
+   * client. Non-HTTP consumers that subscribe via onRawEvent/onRawSessionLifecycle
+   * should call this once right after subscribing, since sessions already
+   * active at relay-startup time broadcast before any subscriber existed.
+   */
+  getSnapshot: () => { sessions: SessionInfo[]; events: AgentEvent[] }
   /** Clean up all resources */
   dispose: () => void
 }
@@ -514,6 +522,29 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
     os: os.platform(),
     arch: os.arch(),
   })
+
+  function buildSnapshot(): { sessions: SessionInfo[]; events: AgentEvent[] } {
+    const sessionList: SessionInfo[] = []
+    for (const session of sessions.values()) {
+      if (!session.sessionDetected) continue
+      sessionList.push({
+        id: session.sessionId, label: session.label,
+        status: session.sessionCompleted ? 'completed' : 'active',
+        startTime: session.sessionStartTime, lastActivityTime: session.lastActivityTime,
+      })
+    }
+    if (codexWatcher) sessionList.push(...codexWatcher.getActiveSessions())
+
+    const sorted = [...sessionList].sort((a, b) => {
+      const aActive = a.status === 'active' ? 1 : 0
+      const bActive = b.status === 'active' ? 1 : 0
+      if (aActive !== bActive) return bActive - aActive
+      return b.lastActivityTime - a.lastActivityTime
+    })
+    const events = sorted.length > 0 ? (eventBuffer.get(sorted[0].id) ?? []) : []
+
+    return { sessions: sessionList, events }
+  }
 
   telemetry?.emit({ ...baseEvent(), event_type: 'session_start' })
 

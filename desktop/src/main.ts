@@ -66,9 +66,36 @@ async function startRelay(): Promise<void> {
     relay.onRawEvent((event) => {
       mainWindow?.webContents.send('agent-event', event)
     })
-    relay.onRawSessionLifecycle((data) => {
-      mainWindow?.webContents.send('session-lifecycle', data)
+    relay.onRawSessionLifecycle((raw) => {
+      // Translate the relay's flat {type, sessionId, label, ...} shape into
+      // the {type, data} envelope web/lib/vscode-bridge.ts expects on the
+      // session-lifecycle channel (same shapes the SSE 'session-started' /
+      // 'session-ended' / 'session-updated' messages carry).
+      if (raw.type === 'started') {
+        mainWindow?.webContents.send('session-lifecycle', {
+          type: 'started',
+          data: { id: raw.sessionId, label: raw.label, status: 'active', startTime: raw.startTime, lastActivityTime: raw.lastActivityTime },
+        })
+      } else if (raw.type === 'ended') {
+        mainWindow?.webContents.send('session-lifecycle', { type: 'ended', data: raw.sessionId })
+      } else if (raw.type === 'updated') {
+        mainWindow?.webContents.send('session-lifecycle', { type: 'updated', data: { sessionId: raw.sessionId, label: raw.label } })
+      }
     })
+
+    // Sessions already active when the relay started broadcast their
+    // 'started' lifecycle event during createRelay()'s synchronous initial
+    // scan — before the subscriptions above existed. Without this catch-up,
+    // a session that was running before the desktop app launched would
+    // never appear, even though the relay knows about it internally.
+    const snapshot = relay.getSnapshot()
+    if (snapshot.sessions.length > 0) {
+      mainWindow?.webContents.send('session-lifecycle', { type: 'list', data: snapshot.sessions })
+    }
+    for (const event of snapshot.events) {
+      mainWindow?.webContents.send('agent-event', event)
+    }
+
     connectionStatus = 'connected'
   } catch (err) {
     log.error('Failed to start relay/hook server:', err)
@@ -102,7 +129,12 @@ function resolveRendererPath(): string | null {
   return null
 }
 
-function createWindow() {
+// Resolves once the renderer's page has finished loading — i.e. once
+// preload.ts's contextBridge listeners are guaranteed to be attached.
+// startRelay() awaits this before sending its catch-up snapshot, otherwise
+// session data broadcast immediately on launch has no listener yet on the
+// renderer side and is silently dropped (mirrors the bug this was added to fix).
+function createWindow(): Promise<void> {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -115,6 +147,9 @@ function createWindow() {
   })
 
   const rendererPath = resolveRendererPath()
+  const loaded = new Promise<void>((resolve) => {
+    mainWindow!.webContents.once('did-finish-load', () => resolve())
+  })
   if (rendererPath) {
     mainWindow.loadFile(rendererPath)
   } else {
@@ -133,6 +168,8 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+
+  return loaded
 }
 
 function setupTray(win: BrowserWindow) {
@@ -306,7 +343,7 @@ app.whenReady().then(async () => {
     mainWindow?.webContents.send('update-downloaded', info)
   })
 
-  createWindow()
+  await createWindow()
 
   if (preferences.autoDetectSessions) {
     await startRelay()
