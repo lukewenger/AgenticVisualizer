@@ -42,10 +42,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build main/preload/renderer bundles
-        run: pnpm --filter agent-flow-desktop run build && pnpm --filter agent-flow-desktop run build:renderer
+        run: pnpm --filter agenticvisualizer-desktop run build && pnpm --filter agenticvisualizer-desktop run build:renderer
 
       - name: Package and publish (${{ matrix.os }})
-        run: pnpm --filter agent-flow-desktop exec electron-builder --config electron-builder.config.js --publish always
+        run: pnpm --filter agenticvisualizer-desktop exec electron-builder --config electron-builder.config.js --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false

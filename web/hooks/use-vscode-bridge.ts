@@ -86,8 +86,8 @@ export function useVSCodeBridge(): BridgeHookResult {
     // vscode-bridge.ts's setupElectronBridge), not the SSE relay endpoint
     if (bridge.isElectron) return
 
-    // Connect to relay in dev mode or standalone CLI mode
-    const isStandalone = process.env.AGENT_FLOW_STANDALONE === '1'
+    // Connect to relay in dev mode or the desktop renderer's standalone build
+    const isStandalone = process.env.AGENTICVISUALIZER_STANDALONE === '1'
     if (!isStandalone && (process.env.NODE_ENV !== 'development' || process.env.NEXT_PUBLIC_DEMO !== '0')) return
 
     const relayPort = process.env.NEXT_PUBLIC_RELAY_PORT || ''

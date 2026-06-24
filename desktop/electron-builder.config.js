@@ -1,7 +1,7 @@
 'use strict'
 
 /**
- * electron-builder configuration for the Agent Flow desktop app.
+ * electron-builder configuration for the AgenticVisualizer desktop app.
  *
  * NOTE on the `electron-builder` devDependency version pin (see
  * desktop/package.json and the root package.json's `pnpm.overrides`):
@@ -37,13 +37,10 @@
  *     an Apple Developer ID is available. Without this, Gatekeeper will
  *     block the app on first launch.
  *
- * TODO(publish): `publish.owner` below is a placeholder — replace
- * 'REPLACE_WITH_REAL_ORG' with the actual GitHub org/user that owns the
- * agent-flow-GUI repo before running a real `--publish` release.
  */
 module.exports = {
-  appId: 'com.agentflow.desktop',
-  productName: 'Agent Flow',
+  appId: 'com.agenticvisualizer.desktop',
+  productName: 'AgenticVisualizer',
   directories: {
     output: 'dist-packages',
   },
@@ -68,6 +65,6 @@ module.exports = {
   publish: {
     provider: 'github',
     owner: 'lukewenger',
-    repo: 'agent-flow-GUI',
+    repo: 'AgenticVisualizer',
   },
 }

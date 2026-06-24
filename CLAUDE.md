@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-Agent Flow is a real-time visualization tool for Claude Code and Codex agent execution. It renders force-directed graphs of agent trees, tool calls, and message flows at 60fps. It ships as a native Electron desktop app, alongside a browser-based dev server used for iterating on the visualizer UI.
+AgenticVisualizer is a real-time visualization tool for Claude Code and Codex agent execution. It renders force-directed graphs of agent trees, tool calls, and message flows at 60fps. It ships as a native Electron desktop app, alongside a browser-based dev server used for iterating on the visualizer UI. It is a fork of [Agent Flow](https://github.com/patoles/agent-flow) by Simon Patole.
 
 ## Commands
 
@@ -36,10 +36,10 @@ npx tsx --test core/test/codex-rollout-parser.test.ts
 ## Monorepo Layout
 
 ```
-agent-flow-GUI/
+AgenticVisualizer/
 ├── core/           # Shared session-watching backend (Node, no UI deps)
 ├── desktop/        # Electron desktop app (main process + packaging)
-├── scripts/        # Shared relay, telemetry, hook setup
+├── scripts/        # Shared relay, hook setup
 └── web/            # Frontend (Next.js + React 19 + Tailwind 4); also the Electron renderer
 ```
 
@@ -104,5 +104,5 @@ The frontend has Next.js (browser dev) plus one Vite entry point for the Electro
 ## Runtime Detection
 
 The relay resolves which runtime(s) to start:
-1. Check `AGENT_FLOW_RUNTIME` env var (`"claude"` / `"codex"` / `"auto"`)
+1. Check `AGENTICVISUALIZER_RUNTIME` env var (`"claude"` / `"codex"` / `"auto"`)
 2. Fall back to `"auto"` — starts both Claude and Codex watchers

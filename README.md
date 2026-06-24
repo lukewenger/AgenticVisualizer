@@ -1,14 +1,12 @@
-# Agent Flow
+# AgenticVisualizer
 
-Real-time visualization of Claude Code and Codex agent orchestration. Watch your agents think, branch, and coordinate as they work. [Demo video here](https://www.youtube.com/watch?v=Ud6eDrFN-TA). 
+Real-time visualization of Claude Code and Codex agent orchestration. Watch your agents think, branch, and coordinate as they work.
 
-![Agent Flow visualization](https://res.cloudinary.com/dxlvclh9c/image/upload/v1773924941/screenshot_e7yox3.png)
+![AgenticVisualizer screenshot](https://res.cloudinary.com/dxlvclh9c/image/upload/v1773924941/screenshot_e7yox3.png)
 
-## Why Agent Flow?
+> AgenticVisualizer is a fork of [Agent Flow](https://github.com/patoles/agent-flow) by Simon Patole / [CraftMyGame](https://craftmygame.com), repackaged as a standalone desktop app.
 
-I built Agent Flow while developing [CraftMyGame](https://craftmygame.com), a game creation platform driven by AI agents. Debugging agent behavior was painful, so we made it visual. Now we're sharing it.
-
-Claude Code is powerful, but its execution is a black box — you see the final result, not the journey. Agent Flow makes the invisible visible:
+Claude Code is powerful, but its execution is a black box — you see the final result, not the journey. AgenticVisualizer makes the invisible visible:
 
 - **Understand agent behavior** — See how Claude breaks down problems, which tools it reaches for, and how subagents coordinate
 - **Debug tool call chains** — When something goes wrong, trace the exact sequence of decisions and tool calls that led there
@@ -18,7 +16,7 @@ Claude Code is powerful, but its execution is a black box — you see the final 
 ## Features
 
 - **Live agent visualization**: Watch agent execution as an interactive node graph with real-time tool calls, branching, and return flows
-- **Claude Code + Codex**: Auto-detects sessions from both runtimes concurrently and shows them side-by-side, or restrict to one via the `agentVisualizer.runtime` setting
+- **Claude Code + Codex**: Auto-detects sessions from both runtimes concurrently and shows them side-by-side, or restrict to one via `AGENTICVISUALIZER_RUNTIME`
 - **Claude Code hooks**: Lightweight HTTP hook server receives events directly from Claude Code for zero-latency streaming
 - **Codex rollout tailing**: Reads `~/.codex/sessions/**/rollout-*.jsonl` (respects `CODEX_HOME`) and surfaces tool calls, reasoning, and authoritative token counts from Codex's own event stream
 - **Multi-session support**: Track multiple concurrent agent sessions with tabs
@@ -30,13 +28,13 @@ Claude Code is powerful, but its execution is a black box — you see the final 
 
 ### Desktop App
 
-Download the latest installer for your platform from [Releases](https://github.com/patoles/agent-flow/releases). Launch it, then start a Claude Code or Codex session — Agent Flow auto-detects it and configures Claude Code hooks on first run.
+Download the latest installer for your platform from [Releases](https://github.com/lukewenger/AgenticVisualizer/releases). Launch it, then start a Claude Code or Codex session — AgenticVisualizer auto-detects it and configures Claude Code hooks on first run.
 
 ### From source
 
 ```bash
-git clone https://github.com/patoles/agent-flow.git
-cd agent-flow
+git clone https://github.com/lukewenger/AgenticVisualizer.git
+cd AgenticVisualizer
 pnpm i
 pnpm run setup      # configure Claude Code hooks (one-time)
 pnpm run dev:desktop
@@ -44,9 +42,9 @@ pnpm run dev:desktop
 
 ### Runtime selection
 
-By default Agent Flow watches both Claude Code (`~/.claude/projects/`) and Codex (`~/.codex/sessions/`) concurrently. Sessions are shown side-by-side and tagged by runtime. If you only use one, the other is a harmless no-op — no visible effect, no user action needed.
+By default AgenticVisualizer watches both Claude Code (`~/.claude/projects/`) and Codex (`~/.codex/sessions/`) concurrently. Sessions are shown side-by-side and tagged by runtime. If you only use one, the other is a harmless no-op — no visible effect, no user action needed.
 
-To restrict to one runtime, set the `AGENT_FLOW_RUNTIME` environment variable to `claude` or `codex` (defaults to watching both).
+To restrict to one runtime, set the `AGENTICVISUALIZER_RUNTIME` environment variable to `claude` or `codex` (defaults to watching both).
 
 For non-default Codex installs, set the `CODEX_HOME` environment variable.
 
@@ -76,22 +74,12 @@ Other scripts:
 | `pnpm run build:desktop` | Build and package the desktop app |
 | `pnpm run build:web` | Build the Next.js web app |
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/chart?repos=patoles/agent-flow&type=date&legend=bottom-right)](https://www.star-history.com/?repos=patoles%2Fagent-flow&type=date&legend=bottom-right)
-
-
-## Author
-
-Created by [Simon Patole](https://github.com/patoles), for [CraftMyGame](https://craftmygame.com).
-
 ## Privacy & Telemetry
 
-`pnpm run dev` and the desktop app emit no telemetry.
-
+AgenticVisualizer emits no telemetry.
 
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE) for details.
 
-The name "Agent Flow" and associated logos are trademarks of Simon Patole. See [TRADEMARK.md](TRADEMARK.md) for usage guidelines.
+This project is a fork of [Agent Flow](https://github.com/patoles/agent-flow). The name "Agent Flow" and associated logos remain trademarks of Simon Patole and are not used here — see [TRADEMARK.md](TRADEMARK.md).

@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
- * Standalone setup script for Agent Flow.
+ * Standalone setup script for AgenticVisualizer.
  *
- * Performs the same hook configuration that the VS Code extension does on
- * activation, so developers can run the webview in dev mode without needing
- * to launch the extension in the debugger first.
+ * Configures Claude Code hooks so the desktop app (or the dev relay) starts
+ * receiving live events without any manual setup.
  *
  * What it does:
- *   1. Installs the hook forwarding script at ~/.claude/agent-flow/hook.js
+ *   1. Installs the hook forwarding script at ~/.claude/agenticvisualizer/hook.js
  *   2. Configures Claude Code hooks in ~/.claude/settings.json
  */
 'use strict'
@@ -17,14 +16,14 @@ const path = require('path')
 const os = require('os')
 const { execFileSync } = require('child_process')
 
-const DISCOVERY_DIR = path.join(os.homedir(), '.claude', 'agent-flow')
+const DISCOVERY_DIR = path.join(os.homedir(), '.claude', 'agenticvisualizer')
 const HOOK_SCRIPT_PATH = path.join(DISCOVERY_DIR, 'hook.js')
 const SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json')
 
 const HOOK_TIMEOUT_S = 2
 const HOOK_SAFETY_MARGIN_MS = 500
 const HOOK_FORWARD_TIMEOUT_MS = 1000
-const HOOK_COMMAND_MARKER = 'agent-flow/hook.js'
+const HOOK_COMMAND_MARKER = 'agenticvisualizer/hook.js'
 
 // ─── Resolve node path ──────────────────────────────────────────────────────
 
@@ -43,9 +42,9 @@ function resolveNodePath() {
 
 function getHookScriptContent() {
   return `#!/usr/bin/env node
-// Agent Flow hook forwarder v3 — installed by the Agent Flow setup script.
+// AgenticVisualizer hook forwarder v3 — installed by the setup script.
 // Claude Code invokes this as a command hook. It reads a discovery directory to
-// find live extension instances, checks their PIDs, and forwards the event via
+// find live app instances, checks their PIDs, and forwards the event via
 // HTTP POST. Dead instances are cleaned up automatically.
 'use strict';
 const fs = require('fs');
@@ -55,7 +54,7 @@ const os = require('os');
 
 setTimeout(() => process.exit(0), ${HOOK_TIMEOUT_S * 1000 - HOOK_SAFETY_MARGIN_MS});
 
-const DIR = path.join(os.homedir(), '.claude', 'agent-flow');
+const DIR = path.join(os.homedir(), '.claude', 'agenticvisualizer');
 const IS_WIN = process.platform === 'win32';
 
 function normPath(p) {
@@ -151,7 +150,7 @@ function ensureHookScript() {
 
 // ─── Configure Claude Code hooks ────────────────────────────────────────────
 
-function isAgentFlowHook(entry) {
+function isAgenticVisualizerHook(entry) {
   return entry.hooks?.some(h =>
     h.command?.includes(HOOK_COMMAND_MARKER) ||
     h.url?.startsWith('http://127.0.0.1:'),
@@ -180,7 +179,7 @@ function configureHooks() {
   const existingHooks = settings.hooks || {}
   for (const event of events) {
     const existing = existingHooks[event] || []
-    const filtered = existing.filter(entry => !isAgentFlowHook(entry))
+    const filtered = existing.filter(entry => !isAgenticVisualizerHook(entry))
     existingHooks[event] = [...filtered, hookEntry]
   }
   settings.hooks = existingHooks
@@ -207,7 +206,7 @@ function isAlreadySetup() {
     if (!hooks || typeof hooks !== 'object') return false
     return Object.values(hooks).some(entries => {
       if (!Array.isArray(entries)) return false
-      return entries.some(entry => isAgentFlowHook(entry))
+      return entries.some(entry => isAgenticVisualizerHook(entry))
     })
   } catch {
     return false
@@ -232,12 +231,12 @@ if (require.main === module) {
   const force = process.argv.includes('--force')
 
   if (!force && isAlreadySetup()) {
-    console.log('Agent Flow is already set up. Run with --force to reconfigure.')
+    console.log('AgenticVisualizer is already set up. Run with --force to reconfigure.')
     process.exit(0)
   }
 
-  console.log('Setting up Agent Flow...\n')
+  console.log('Setting up AgenticVisualizer...\n')
   ensureHookScript()
   configureHooks()
-  console.log('\nDone! New sessions will stream events to Agent Flow.')
+  console.log('\nDone! New sessions will stream events to AgenticVisualizer.')
 }

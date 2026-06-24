@@ -66,7 +66,7 @@ function buildSolidPng(size) {
   ihdr.writeUInt8(0, 11) // filter
   ihdr.writeUInt8(0, 12) // interlace
 
-  // Agent Flow brand-ish indigo: #4F46E5
+  // Brand-ish indigo: #4F46E5
   const r = 0x4f, g = 0x46, b = 0xe5, a = 0xff
   const rowLen = 1 + size * 4 // filter byte + RGBA per pixel
   const raw = Buffer.alloc(rowLen * size)

@@ -19,7 +19,7 @@ const ROOT = path.join(DESKTOP_DIR, '..')
 const SRC_DIR = path.join(DESKTOP_DIR, 'src')
 const OUT_DIR = path.join(DESKTOP_DIR, 'dist')
 
-console.log('Building Agent Flow desktop...\n')
+console.log('Building AgenticVisualizer desktop...\n')
 
 fs.mkdirSync(OUT_DIR, { recursive: true })
 

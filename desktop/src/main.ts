@@ -100,7 +100,7 @@ async function startRelay(): Promise<void> {
     log.error('Failed to start relay/hook server:', err)
     connectionStatus = 'degraded'
     dialog.showErrorBox(
-      'Agent Flow',
+      'AgenticVisualizer',
       'Could not start the session listener (port already in use — is another instance already running?). File-based session detection will still work.',
     )
   }
@@ -115,17 +115,10 @@ function stopRelay(): void {
 }
 
 function resolveRendererPath(): string | null {
-  // Phase 2 will wire the built standalone renderer (web/vite.config.app.ts
-  // output, mirrored into desktop/dist/renderer or loaded directly from
-  // app/dist/webview). Until that's in place, fall back to the placeholder.
-  const candidates = [
-    path.join(__dirname, 'renderer', 'index.html'),
-    path.join(__dirname, '..', '..', 'app', 'dist', 'webview', 'index.html'),
-  ]
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate
-  }
-  return null
+  // Built by desktop/scripts/build-renderer.js (desktop/vite.renderer.config.ts)
+  // into desktop/dist/renderer/. Falls back to the placeholder if missing.
+  const candidate = path.join(__dirname, 'renderer', 'index.html')
+  return fs.existsSync(candidate) ? candidate : null
 }
 
 // Resolves once the renderer's page has finished loading — i.e. once
@@ -137,7 +130,7 @@ function createWindow(): Promise<void> {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: 'Agent Flow',
+    title: 'AgenticVisualizer',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -174,7 +167,7 @@ function createWindow(): Promise<void> {
 function setupTray(win: BrowserWindow) {
   const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png')
   const tray = new Tray(iconPath)
-  tray.setToolTip('Agent Flow')
+  tray.setToolTip('AgenticVisualizer')
 
   // Phase 6: keep the "Launch at login" checkbox in sync with the actual OS
   // state on startup, in case the user changed it via OS settings directly
@@ -188,7 +181,7 @@ function setupTray(win: BrowserWindow) {
   function rebuildMenu() {
     const menu = Menu.buildFromTemplate([
       {
-        label: 'Show Agent Flow',
+        label: 'Show AgenticVisualizer',
         click: () => {
           win.show()
           win.focus()
@@ -226,7 +219,7 @@ function setupTray(win: BrowserWindow) {
           dialog.showMessageBox(win, {
             type: 'info',
             title: 'Preferences',
-            message: 'Agent Flow Preferences',
+            message: 'AgenticVisualizer Preferences',
             detail:
               `Auto-detect sessions: ${preferences.autoDetectSessions ? 'On' : 'Off'}\n` +
               `Launch at login: ${preferences.launchAtLogin ? 'On' : 'Off'}\n` +
@@ -241,8 +234,8 @@ function setupTray(win: BrowserWindow) {
           const sessionCount = relay ? '(see main window for active sessions)' : 'n/a'
           dialog.showMessageBox(win, {
             type: 'info',
-            title: 'About Agent Flow',
-            message: 'Agent Flow',
+            title: 'About AgenticVisualizer',
+            message: 'AgenticVisualizer',
             detail:
               `Version ${app.getVersion()}\n` +
               `Status: ${connectionStatus === 'connected' ? 'Running' : connectionStatus === 'degraded' ? 'Running (file-based detection only)' : 'Running'}\n` +
@@ -317,8 +310,8 @@ function setupApplicationMenu() {
               click: () => {
                 dialog.showMessageBox({
                   type: 'info',
-                  title: 'About Agent Flow',
-                  message: 'Agent Flow',
+                  title: 'About AgenticVisualizer',
+                  message: 'AgenticVisualizer',
                   detail: `Version ${app.getVersion()}`,
                 })
               },

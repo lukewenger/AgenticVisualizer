@@ -1,6 +1,6 @@
-# Contributing to Agent Flow
+# Contributing to AgenticVisualizer
 
-Thank you for your interest in contributing to Agent Flow! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to AgenticVisualizer! This document provides guidelines for contributing to the project.
 
 ## Contributor License Agreement (CLA)
 
@@ -11,7 +11,7 @@ Before your first contribution can be merged, you must sign the [Contributor Lic
 ### Reporting Bugs
 
 - Open an issue describing the bug, including steps to reproduce
-- Include your environment details (OS, VS Code version, Node version)
+- Include your environment details (OS, AgenticVisualizer version, Node version)
 
 ### Suggesting Features
 
@@ -40,4 +40,4 @@ Be respectful and constructive in all interactions. We are committed to providin
 
 ## License
 
-By contributing to Agent Flow, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE), subject to the terms of the [CLA](CLA.md).
+By contributing to AgenticVisualizer, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE), subject to the terms of the [CLA](CLA.md).

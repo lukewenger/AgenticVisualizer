@@ -1,5 +1,5 @@
 {
-  "name": "agent-flow-desktop",
+  "name": "agenticvisualizer-desktop",
   "version": "0.1.0",
   "private": true,
   "description": "Real-time visualization of AI agent orchestration — native desktop app (Electron)",

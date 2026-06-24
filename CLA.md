@@ -1,6 +1,6 @@
 # Contributor License Agreement
 
-Thank you for your interest in contributing to Agent Flow. To clarify the intellectual property rights associated with contributions, we ask all contributors to agree to this Contributor License Agreement ("CLA") before their contributions can be merged.
+Thank you for your interest in contributing to AgenticVisualizer. To clarify the intellectual property rights associated with contributions, we ask all contributors to agree to this Contributor License Agreement ("CLA") before their contributions can be merged.
 
 ## How to Sign
 
@@ -14,15 +14,15 @@ By signing this CLA or submitting a contribution, you agree to the following ter
 
 - **"You"** means the individual or Legal Entity submitting a Contribution.
 - **"Contribution"** means any original work of authorship, including modifications or additions to the existing work, that you intentionally submit to this project.
-- **"Project"** means the Agent Flow project maintained by Simon Patole.
+- **"Project"** means the AgenticVisualizer project maintained by its project maintainers.
 
 ### 2. Grant of Copyright License
 
-You hereby grant to Simon Patole and recipients of software distributed by the Project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute your Contributions and any derivative works thereof.
+You hereby grant to the Project maintainers and recipients of software distributed by the Project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute your Contributions and any derivative works thereof.
 
 ### 3. Grant of Patent License
 
-You hereby grant to Simon Patole and recipients of software distributed by the Project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer your Contributions, where such license applies only to those patent claims licensable by you that are necessarily infringed by your Contribution(s) alone or by combination of your Contribution(s) with the Work.
+You hereby grant to the Project maintainers and recipients of software distributed by the Project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer your Contributions, where such license applies only to those patent claims licensable by you that are necessarily infringed by your Contribution(s) alone or by combination of your Contribution(s) with the Work.
 
 ### 4. Representations
 

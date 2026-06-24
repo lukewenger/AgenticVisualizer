@@ -2,11 +2,11 @@
  * Preferences persistence for the desktop app.
  *
  * Stored as JSON under Electron's per-OS userData directory (the correct
- * convention — avoids reinventing path resolution like `~/.agent-flow/`).
+ * convention — avoids reinventing path resolution like `~/.agenticvisualizer/`).
  * Typical locations:
- *   Windows: %APPDATA%/agent-flow-desktop/desktop-prefs.json
- *   macOS:   ~/Library/Application Support/agent-flow-desktop/desktop-prefs.json
- *   Linux:   ~/.config/agent-flow-desktop/desktop-prefs.json
+ *   Windows: %APPDATA%/agenticvisualizer-desktop/desktop-prefs.json
+ *   macOS:   ~/Library/Application Support/agenticvisualizer-desktop/desktop-prefs.json
+ *   Linux:   ~/.config/agenticvisualizer-desktop/desktop-prefs.json
  */
 import { app } from 'electron'
 import * as fs from 'fs'
