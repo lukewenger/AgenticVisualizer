@@ -142,6 +142,26 @@ function createWindow(): Promise<void> {
   const loaded = new Promise<void>((resolve) => {
     mainWindow!.webContents.once('did-finish-load', () => resolve())
   })
+
+  // Re-send connection status and the session snapshot on every page load,
+  // including reloads triggered by View > Reload / Ctrl+R. On the first load
+  // this fires before startRelay() (sending the pre-relay 'disconnected'
+  // state); startRelay() then overwrites it with 'connected'. On subsequent
+  // reloads it is the only sender, so without this handler the renderer
+  // would stay stuck at 'disconnected' forever.
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow?.webContents.send('connection-status', { status: connectionStatus, source: 'electron-main' })
+    if (relay) {
+      const snapshot = relay.getSnapshot()
+      if (snapshot.sessions.length > 0) {
+        mainWindow?.webContents.send('session-lifecycle', { type: 'list', data: snapshot.sessions })
+      }
+      for (const event of snapshot.events) {
+        mainWindow?.webContents.send('agent-event', event)
+      }
+    }
+  })
+
   if (rendererPath) {
     mainWindow.loadFile(rendererPath)
   } else {

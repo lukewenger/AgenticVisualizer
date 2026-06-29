@@ -185,18 +185,19 @@ export function useAgentSimulation(options: UseAgentSimulationOptions = {}) {
     const deltaTime = Math.min((timestamp - lastTimeRef.current) / 1000, ANIM_SPEED.maxDeltaTime)
     lastTimeRef.current = timestamp
 
-    // Snapshot and consume external events OUTSIDE the main processing
-    // to avoid React strict mode double-invocation clearing them
-    let capturedEvents: SimulationEvent[] | null = null
-    if (externalEvents && externalEvents.length > 0 && !useMockData) {
-      capturedEvents = externalEvents.slice()
-      onExternalEventsConsumed?.()
-    }
-
     const prev = frameRef.current
     if (!prev.isPlaying) {
       animationRef.current = requestAnimationFrame(animateRef.current)
       return
+    }
+
+    // Snapshot and consume external events AFTER the isPlaying check so that
+    // events are never lost when the loop fires during a paused frame.
+    // If paused, events remain in the queue and are picked up when playback resumes.
+    let capturedEvents: SimulationEvent[] | null = null
+    if (externalEvents && externalEvents.length > 0 && !useMockData) {
+      capturedEvents = externalEvents.slice()
+      onExternalEventsConsumed?.()
     }
 
     let newTime = prev.currentTime + deltaTime * prev.speed
